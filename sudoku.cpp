@@ -8,6 +8,7 @@ using namespace std;
 
 //GLOBAL DEFINES
 int boardsize = 9;
+int EMPTY = 0;
 //define some board examples
 #if 1
     string input1 = "\
@@ -18,15 +19,15 @@ int boardsize = 9;
         ";
 
     string incomplete_board = "\
-        120000089\
-        789123456\
-        456780000\
-        300005967\
-        600000005\
-        000690002\
-        201504608\
-        960231004\
-        500060031\
+        000000000\
+        000000000\
+        000080000\
+        000000000\
+        000000005\
+        000000002\
+        200000600\
+        000000004\
+        500060000\
         ";
 
     string complete_board = "\
@@ -40,8 +41,22 @@ int boardsize = 9;
         968231574\
         574968231\
         ";
+
+    string evil_board = "\
+        020040009\
+        080000700\
+        704600001\
+        309080100\
+        000005006\
+        070000000\
+        002000000\
+        401090300\
+        000800090\
+        ";
 #endif
 
+/// @param val The value at that specific coordinate value
+/// @param pos_values The range of numbers that could be valid in this location
 class Tile{
     private:
         int val = 0;
@@ -79,9 +94,8 @@ class Tile{
         }
 };
 
-/// @brief A square sudoku board defined by a boardsize global variable. It 
+/// @brief A square sudoku board defined by a boardsize global variable initialized to 0. It 
 /// @brief requires that all the numbers from 1-boardsize inclusive exist in each row and column without repeats
-/// @brief a 4x4 board would have 1,2,3,4 and ignore the rest of the numbers
 class SudokuBoard{
     private:
         vector<vector<Tile>> tiles;
@@ -92,6 +106,7 @@ class SudokuBoard{
         SudokuBoard(string input){
             if (input.size() < 0){
                 fprintf(stderr, "Too small of a board input string\n");
+                throw;
             }
             else{
                 //initialize boardsize x boardsize board to all 0s
@@ -99,7 +114,7 @@ class SudokuBoard{
                     vector<Tile> row;
                     tiles.push_back(row);
                     for (int j = 0; j < boardsize; j++){
-                        tiles[i].push_back(Tile(0));
+                        tiles[i].push_back(Tile(EMPTY));
                     }
                 }
 
@@ -108,9 +123,11 @@ class SudokuBoard{
                 if (input.size() != boardsize * boardsize){
                     if (input.size() > boardsize * boardsize){
                         fprintf(stderr, "Input is too big to create a square grid\n\tbased on boardsize: %d\n\n", boardsize);
+                        throw;
                     }
                     else{
                         fprintf(stderr, "Input is too small to create a square grid\n\tbased on boardsize: %d\n\n", boardsize);
+                        throw;
                     }
                     
                     printf("Input: %s\n", input.c_str());
@@ -228,7 +245,7 @@ class SudokuBoard{
                     int val = tiles[j][i].getVal(); //current tile being looked at
                     
                     //confirm board is complete
-                    if (val == 0){
+                    if (val == EMPTY){
                         fprintf(stderr, "There exists a 0 on the board (incomplete)\n");
                         return 1;
                     }
@@ -239,7 +256,7 @@ class SudokuBoard{
                         return 1;
                     }
 
-                    //check row, column, and block
+                    //check row, column, and block for duplicate values
                     if (isInRow(i,j) || isInCol(i,j) || isInBlock(i,j)){
                         return 1;
                     }
@@ -247,33 +264,148 @@ class SudokuBoard{
             }
             return 0;
         }
-        
-        /// @brief Automatic attempt to fill in every empty grid in the board
+
+        bool findEmptyTile(int& row, int& col){
+            for (row = 0; row < boardsize; row++){
+                for (col = 0; col < boardsize; col++){
+                    if (tiles[row][col].getVal() == EMPTY){
+                        //printf("found empty tile at row %d col %d\n", row, col);
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
+        /// @brief Parallel attempt to fill in every empty grid in the board
         /// @return 0 on success, 1 on error, tiles will be filled correctly on success
-        int solveBoard(){
+        int solveBoardParallel(){
             //go through and fill every element of the board (write solution to file) IN PARALLEL
 
             //test board
             if (checkBoard() == 0){return 0;}
             return 1;
         }
+
+        /// @brief  Checks if the given val can put placed anywhere in the row
+        /// @param row the row being checked
+        /// @param val the value being checked
+        /// @return false if the value already exists, so it cannot be supported. otherwise true
+        bool canSupportinRow(int row, int val){
+            for (int i = 0; i < boardsize; i++)
+                if (tiles[row][i].getVal() == val)
+                    return false;
+            return true;
+        }
+
+        /// @brief  Checks if the given val can put placed anywhere in the column
+        /// @param col the column being checked
+        /// @param val the value being checked
+        /// @return false if the value already exists, so it cannot be supported. otherwise true
+        bool canSupportinCol(int col, int val){
+            for (int i = 0; i < boardsize; i++)
+                if (tiles[i][col].getVal() == val)
+                    //printf("found match of %d at row: %d, col: %d\n", val, i, col);
+                    return false;
+            return true;
+        }
+
+        ///THIS IS HARDCODED TO 9X9 FOR NOW///////////////////////////////////////////
+        /// @brief Checks the same block for existence of val
+        /// @param col current x
+        /// @param row current y
+        /// @returns true if can support because of no duplicate, false otherwise
+        bool canSupportinBlock(int row, int col, int val){
+            //find which block to check in
+            int xstart = (col / 3) * 3; //round down and then scale up
+            int ystart = (row / 3) * 3;
+            int xend = xstart+3;
+            int yend = ystart+3;
+
+            for (int i = xstart; i < xend; i++){
+                for (int j = ystart; j < yend; j++){                    
+                    if (val == tiles[j][i].getVal()){
+                        return false;
+                    }
+                }
+            }
+            
+            return true;
+        }
+
+        /// @brief Sequential attempt to fill in every empty grid in the board
+        /// @return 0 on success, 1 on error, tiles will be filled correctly on success
+        int solveBoardSequential(){
+            //test board
+            int row = 0;
+            int col = 0;
+            if (!findEmptyTile(row, col)){return 0;}
+            
+            //try to fill the empty element
+            for (int i = 1; i <= boardsize; i++){
+                // the tile can support the value in (row, col)
+                if (canSupportinRow(row, i) && canSupportinCol(col, i) && canSupportinBlock(row, col, i)){
+                    //test out that number and continue
+                    tiles[row][col].setVal(i);
+                    if (solveBoardSequential() == 0){
+                        //passed so end
+                        return 0;
+                    }
+                    
+                    //undo and try a different number
+                    tiles[row][col].setVal(EMPTY);
+                }
+            }
+            
+            //could not solve the board for some reason
+            return 1;
+        }
 };
-
-
 
 //POTENTIALLY ADD THE 3X3 OR BOARDSIZE%3 X BOARDSIZE%3 BLOCKS AS WELL
 int main(){
-    SudokuBoard* board = new SudokuBoard(complete_board);
-    if (board->solveBoard() == 0){
+    //////////////////////////////////////////////////////////////////////////////////
+    SudokuBoard* b1 = new SudokuBoard(complete_board);
+    printf("***********************\nINITIAL BOARD STATE\n***********************\n");
+    b1->printBoard();  
+    if (b1->solveBoardSequential() == 0){
+        printf("\n***********************\nBOARD IS SOLVED\n***********************\n");
+    }
+    else{
+        printf("board is incomplete or incorrect\n");
+    }
+    b1->printBoard();  
+    delete b1;
+    //////////////////////////////////////////////////////////////////////////////////
+
+    SudokuBoard* b2 = new SudokuBoard(incomplete_board);
+    printf("***********************\nINITIAL BOARD STATE\n***********************\n");
+    b2->printBoard();
+    if (b2->solveBoardSequential() == 0){
         printf("\n***********************\nBOARD IS SOLVED\n***********************\n");
     }
     else{
         printf("board is incomplete or incorrect\n");
     }
 
+    b2->printBoard();    
+    delete b2;
+    //////////////////////////////////////////////////////////////////////////////////
 
-    board->printBoard();    
-    delete board;
+    SudokuBoard* b3 = new SudokuBoard(evil_board);
+    printf("***********************\nINITIAL BOARD STATE\n***********************\n");
+    b3->printBoard();
+    if (b3->solveBoardSequential() == 0){
+        printf("\n***********************\nBOARD IS SOLVED\n***********************\n");
+    }
+    else{
+        printf("board is incomplete or incorrect\n");
+    }
+
+    b3->printBoard();    
+    delete b3;
+
+
     return 0;
 }
 
@@ -294,7 +426,7 @@ RASYAS WAY:
     If any of them make a change, cancel all of them and rerun them all. If they all
     finish and dont make any changes, recurse after guessing a value and try again.
 
-
+could also run each of several different algorithms in parallel
 
 
 
