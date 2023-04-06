@@ -429,6 +429,12 @@ RASYAS WAY:
 could also run each of several different algorithms in parallel
 
 
+****the lists associated with each tile arent even being used right now, 
+and i dont think they EVEN SHOULD BE USED. It is probably slower to constantly be 
+updated these lists for every single change that happens to all elements of each row and each column
+rather than just checking the other (#boardsize) elements in the row or column
+
+
 
 
 
