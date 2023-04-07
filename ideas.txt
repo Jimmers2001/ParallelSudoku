@@ -1,18 +1,38 @@
+TODO:
+gather the 10 resources of research papers that have aspects we can incorporate
+determine the best way to make sudoku parallel  
+    * running several parallel algorithms at the same time
+    * Go through all the resources, summarize them with bulletpoint notes, see what we can use in our own project
+
+NOTES: https://docs.google.com/document/d/1azOF4QCnrdBUBNR-wRTzyq7HK3anmsrOMwSMBIVHewo/edit?usp=sharing
+
+
 Define "completion points" as points in the program where either a row, column, or block is completed.
 Parallel IO will print the time of completion of one of these "completion points" as well as the board state at that time
 
-
-for parallel io since I think each process needs to be designated a particular spot in the file,  
+for parallel output since I think each process needs to be designated a particular spot in the file,  
 the output could look something like: 
 PROCESS 1
 proces 1 finished row 3 at time ... 
 board:
 [0,0,0 blahblahblah]
 
-
 PROCESS 2
-
 
 PROCESS 3
 
+for parallel input:
+    all mpi ranks work together to create the board     
+        they all read from different spots, write into the main board, and then scatter it all back to the board
+    allgather, scatter, broadcast 
 
+RESOURCES:
+https://cse.buffalo.edu/faculty/miller/Courses/CSE633/Sankar-Spring-2014-CSE633.pdf
+https://www.geeksforgeeks.org/sudoku-backtracking-7/#                   -should we actually include this since its not scholarly?
+http://www.individual.utoronto.ca/rafatrashid/Projects/2012/SudokuReport.pdf
+https://link.springer.com/chapter/10.1007/978-3-642-13498-2_60
+https://link.springer.com/chapter/10.1007/978-3-319-10783-7_23
+https://link.springer.com/chapter/10.1007/978-981-10-8228-3_41
+https://link.springer.com/article/10.1007/s10898-007-9138-0
+https://arxiv.org/abs/0805.0697
+https://citeseerx.ist.psu.edu/document?repid=rep1&type=pdf&doi=27652ea38aa6b36ee2bac358ed042120fd7172c9
