@@ -62,7 +62,7 @@ class Tile{
         int val = 0;
         vector<int> pos_values;
     public:
-        Tile(int v){
+        Tile(int v){/////////////////////////loop through boardsize instead of 9
             val = v;
             pos_values.push_back(1);
             pos_values.push_back(2);

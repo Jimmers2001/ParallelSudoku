@@ -1,8 +1,16 @@
 TODO:
 gather the 10 resources of research papers that have aspects we can incorporate
 determine the best way to make sudoku parallel  
-    * running several parallel algorithms at the same time
+    * probably use the colony approach and run 9 different processes in parallel that work on their own blocks.
+        They read the corresponding section of the input string and write to the global board in parallel.
+        Every process can just mutex lock and mutex unlock a global board variable but each process has its own 3x3 focus.
+        
+        We CANNOT have a 10th process that is stuck in a receive call waiting for a process to say that it has a "completion point" finished
+            and then it prints to the output file because we need parallel output so each process needs its allotted section of the output file to write to
+
     * Go through all the resources, summarize them with bulletpoint notes, see what we can use in our own project
+    * Make a 16x16 version 
+
 
 NOTES: https://docs.google.com/document/d/1azOF4QCnrdBUBNR-wRTzyq7HK3anmsrOMwSMBIVHewo/edit?usp=sharing
 
