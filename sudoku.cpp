@@ -173,11 +173,28 @@ class SudokuBoard{
 
         void printBoard(){
             for (int i = 0; i < boardsize; i++){
-                for (int j = 0; j < boardsize; j++){
-                    printf("%d\t", tiles[i][j].getVal());
+                if( i%3 == 0 ){ /////////////////////////loop through boardsize instead of 9
+                     printf("+====+====+====+====+====+====+====+====+====+\n");
                 }
-                printf("\n");
+                else { /////////////////////////loop through boardsize instead of 9
+                    printf("+----+----+----+----+----+----+----+----+----+\n");
+                }
+
+                for (int j = 0; j < boardsize; j++){
+                    if( j%3 == 0 ) {
+                        printf("║ %02d ", tiles[i][j].getVal());
+                    } 
+                    else { 
+                        printf("| %02d ", tiles[i][j].getVal()); 
+                    }
+
+                 
+                }
+                printf("║\n");
             }
+            
+            /////////////////////////loop through boardsize instead of 9
+            printf("+====+====+====+====+====+====+====+====+====+\n");
         }
         
         /// @brief Checks the same column for duplicate value of current position
