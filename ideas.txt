@@ -1,38 +1,50 @@
+ALGORITHM: 
+    There exists a main process with the global board. There are 9 mpi ranks that are associated respectively with blocks. 
+    Each mpi rank tries a series of algorithms sequentially on its block (9 tiles) to solve tiles. 
+        There exists a global variable that determines the number of guesses to make per recursion. 
+        After those guesses, all processes restart and try again.
+        
+        If any of the ranks solve a tile, propagate the change to the main process which will change the global board and tell all processes
+            to restart using the new standardized board. 
+
+        If none of the ranks can solve a tile, they wait/terminate (still deciding) and the main makes *1-N guesses onto the shared global board
+            If all of the tiles end in contradictions, then ONLY the main process needs to backtrack in its recursion of guessing on the global board.
+            It makes a different guess, and has all processes try again from that point. 
+        
+        *for the 1-N gueses, each block finds the empty tile in their block and tells the main to guess on it
+        using SIMULATED ANNEALING, start guessing very randomly (aka like 9 guesses) and as the problem gets smaller, guess more predictively (aka like only 3 guesses)
+
 TODO:
-gather the 10 resources of research papers that have aspects we can incorporate
-determine the best way to make sudoku parallel  
-    * probably use the colony approach and run 9 different processes in parallel that work on their own blocks.
-        They read the corresponding section of the input string and write to the global board in parallel.
+    sequential simulated annealing solution with/without guessing and checking
+    paralell simualted annealing solution with/without guessing and checking
+
+    better board output
+    
+    make an automatic sudoku generator so that we can test our algorithm on 100 random sudoku boards given how many numbers they should all start with (easy vs hard)
+        if our concern is that these will run in .000000002 seconds, running it on 10,000 sudoku boards will give us better numbers
+
+    * Go through all the resources, summarize them with bulletpoint notes, see what we can use in our own project
+    * Make a 16x16 version 
+
+For parallel input
+        Each block will read the corresponding section of the input string and write to the global board in parallel.
         Every process can just mutex lock and mutex unlock a global board variable but each process has its own 3x3 focus.
         
         We CANNOT have a 10th process that is stuck in a receive call waiting for a process to say that it has a "completion point" finished
             and then it prints to the output file because we need parallel output so each process needs its allotted section of the output file to write to
+        Every time we solve a block, row, or column, it might not be final becaues we might need to backtrack. So rewrite the spot in the parallel output every time a new discovery is made in the same location
 
-    * Go through all the resources, summarize them with bulletpoint notes, see what we can use in our own project
-    * Make a 16x16 version 
+        they probably wont use allgather, scatter, broadcast but consider
+
+for parallel output since I think each process needs to be designated a particular spot in the file,  
+    the output could have each process with its block state, and its updated in parallel. 
+    at the end, there is summary only written to by the main process that shows completion point outputs:
+        "process %d solved row %d at time %d" (not completely necessary but nice to have)
 
 
 NOTES: https://docs.google.com/document/d/1azOF4QCnrdBUBNR-wRTzyq7HK3anmsrOMwSMBIVHewo/edit?usp=sharing
 
 
-Define "completion points" as points in the program where either a row, column, or block is completed.
-Parallel IO will print the time of completion of one of these "completion points" as well as the board state at that time
-
-for parallel output since I think each process needs to be designated a particular spot in the file,  
-    the output could look something like: 
-    PROCESS 1
-    proces 1 finished row 3 at time ... 
-    board:
-    [0,0,0 blahblahblah]
-
-    PROCESS 2
-
-    PROCESS 3
-
-for parallel input:
-    all mpi ranks work together to create the board     
-        they all read from different spots, write into the main board, and then scatter it all back to the board
-    allgather, scatter, broadcast 
 
 RESOURCES:
 https://cse.buffalo.edu/faculty/miller/Courses/CSE633/Sankar-Spring-2014-CSE633.pdf
