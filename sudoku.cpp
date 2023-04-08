@@ -476,6 +476,17 @@ int main(int argc, char** argv){
 
     SudokuBoard* global_board;
 
+    /*
+    use MPI_win or whatever to make a global 2d array
+    
+    initialize global_board to turn ^^^ that array into its member variable
+
+    in the future, ranks will use the sudokuboard copy constructor off of global_board
+
+    if this doesnt work, try sends and receives but high overhead and very inefficient    
+    
+    */
+
     if( myrank == 0 ){
         global_board = new SudokuBoard(complete_board);
         printf("*******************************\nINITIAL SEQUENTIAL BOARD STATE\n*******************************\n\n");
@@ -502,7 +513,7 @@ int main(int argc, char** argv){
         //Driver Code Here
         //SudokuBoard* pBoard = new SudokuBoard(complete_board); 
         //global_board->printBoard(); 
-        
+
     } else { 
         /* Recursive Parallel */ 
 
