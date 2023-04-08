@@ -3,12 +3,16 @@
 #include <algorithm>
 #include <cctype>
 #include <string>
+#include <mpi.h>
+#include <mutex>
 
 using namespace std;
 
 //GLOBAL DEFINES
 int boardsize = 9;
 int EMPTY = 0;
+std::mutex global_mutex;
+
 //define some board examples
 #if 1
     string input1 = "\
@@ -182,10 +186,14 @@ class SudokuBoard{
 
                 for (int j = 0; j < boardsize; j++){
                     if( j%3 == 0 ) {
-                        printf("║ %02d ", tiles[i][j].getVal());
+                        if(tiles[i][j].getVal() == 0){
+                            printf("║    ");
+                        } else {  printf("║ %02d ", tiles[i][j].getVal()); }
                     } 
                     else { 
-                        printf("| %02d ", tiles[i][j].getVal()); 
+                       if(tiles[i][j].getVal() == 0){
+                            printf("|    ");
+                        } else {  printf("| %02d ", tiles[i][j].getVal()); }
                     }
 
                  
@@ -282,6 +290,10 @@ class SudokuBoard{
             return 0;
         }
 
+        /// @brief Determines if the board is empty
+        /// @param row the x coordinate of an empty tile
+        /// @param col the y coordinate of an empty tile
+        /// @return returns true if the board has an empty tile, false otherwise
         bool findEmptyTile(int& row, int& col){
             for (row = 0; row < boardsize; row++){
                 for (col = 0; col < boardsize; col++){
@@ -294,14 +306,88 @@ class SudokuBoard{
             return false;
         }
 
+        /// @brief Assigns a particular rank its block to solve in parallel
+        /// @param myrank the rank itself
+        /// @param startx starting x value
+        /// @param starty starting y value
+        /// @param endx INCLUSIVE ending x
+        /// @param endy INCLUSIVE ending y
+        void setBlockCoordinates(int myrank, int& startx, int& starty, int& endx, int& endy){
+            //set coordinates for a 9x9 board
+            if (boardsize == 9){
+                if( myrank == 1 ){ startx = 0; endx = 2; starty = 0; endy = 2; return; }
+                if( myrank == 2 ){ startx = 3; endx = 5; starty = 0; endy = 2; return; }
+                if( myrank == 3 ){ startx = 6; endx = 8; starty = 0; endy = 2; return; }
+                if( myrank == 4 ){ startx = 0; endx = 2; starty = 3; endy = 5; return; }
+                if( myrank == 5 ){ startx = 3; endx = 5; starty = 3; endy = 5; return; }
+                if( myrank == 6 ){ startx = 6; endx = 8; starty = 3; endy = 5; return; }
+                if( myrank == 7 ){ startx = 0; endx = 2; starty = 6; endy = 8; return; }
+                if( myrank == 8 ){ startx = 3; endx = 5; starty = 6; endy = 8; return; }
+                if( myrank == 9 ){ startx = 6; endx = 8; starty = 6; endy = 8; return; }
+            }
+            else if (boardsize == 16){
+                throw;
+            }
+        }
+
+        /// @brief called by solveBoardParallel (the driver), this function recurses and solves in parallel
+        /// @return 0 on success, positive number on error
+        int recursiveParallel(int currRank){
+            int startx, starty, endx, endy;
+            setBlockCoordinates(currRank, startx, starty, endx, endy);
+
+            //fprint("", startx, starty, endx, endy );
+            //test board
+            int row = 0;
+            int col = 0;
+            if (!findEmptyTile(row, col)){return 0;}
+            
+            //try to fill the empty element
+            /*for (int i = 1; i <= boardsize; i++){
+                // the tile can support the value in (row, col)
+                if (canSupportinRow(row, i) && canSupportinCol(col, i) && canSupportinBlock(row, col, i)){
+                    //test out that number and continue
+                    tiles[row][col].setVal(i);
+                    if (solveBoardSequential() == 0){
+                        //passed so end
+                        return 0;
+                    }
+                    
+                    //undo and try a different number
+                    tiles[row][col].setVal(EMPTY);
+                }
+            }*/
+            
+            //could not solve the board for some reason
+            return 1;
+        }
+
         /// @brief Parallel attempt to fill in every empty grid in the board
         /// @return 0 on success, 1 on error, tiles will be filled correctly on success
-        int solveBoardParallel(){
+        int solveBoardParallelDriver(int argc, char** argv){
+            //initialize mpi
+            int myrank;
+            int number_of_ranks;
+            MPI_Comm_rank(MPI_COMM_WORLD, &myrank); //this processes' individual rank
+            MPI_Comm_size(MPI_COMM_WORLD, &number_of_ranks); //the total number of processes in the world
+            
+            printf("I am rank %d in driver)\n", myrank);
+            MPI_Barrier(MPI_COMM_WORLD);
             //go through and fill every element of the board (write solution to file) IN PARALLEL
-
-            //test board
-            if (checkBoard() == 0){return 0;}
-            return 1;
+            
+            if( myrank != 0 ){
+                recursiveParallel(myrank);
+            } else { 
+                while( false /*fix later*/ ){
+                    //wait until all threads do magic
+                    //do things depending on magic
+                    
+                }
+             }
+                 
+            //test board and terminate
+            MPI_Finalize();
+            return checkBoard();
         }
 
         /// @brief  Checks if the given val can put placed anywhere in the row
@@ -380,85 +466,89 @@ class SudokuBoard{
 };
 
 //POTENTIALLY ADD THE 3X3 OR BOARDSIZE%3 X BOARDSIZE%3 BLOCKS AS WELL
-int main(){
-    //////////////////////////////////////////////////////////////////////////////////
-    SudokuBoard* b1 = new SudokuBoard(complete_board);
+int main(int argc, char** argv){
+    int myrank;
+    int number_of_ranks;
+
+    MPI_Init(&argc, &argv);
+    MPI_Comm_rank(MPI_COMM_WORLD, &myrank); //this processes' individual rank
+    MPI_Comm_size(MPI_COMM_WORLD, &number_of_ranks); //the total number of processes in the world
+
+    SudokuBoard* global_board;
+
+    if( myrank == 0 ){
+        global_board = new SudokuBoard(complete_board);
+        printf("*******************************\nINITIAL SEQUENTIAL BOARD STATE\n*******************************\n\n");
+        global_board->printBoard();  
+        if (global_board->solveBoardSequential() == 0){
+            printf("\n*******************************\nBOARD IS SOLVED\n*******************************\n\n");
+        }
+        else{
+            printf("board is incomplete or incorrect\n");
+        }
+        global_board->printBoard();  
+        printf("\n*******************************\nEND OF SEQUENTIAL SOLVER\n*******************************\n\n");
+    } 
+    
+    /*---------------------------------------------------*/
+    /*              YOU THREADS SHALL NOT PASS           */
+    /*---------------------------------------------------*/
+    MPI_Barrier(MPI_COMM_WORLD);
+    /*---------------------------------------------------*/
+
+    
+    if( myrank == 0 ){
+        printf("\n*******************************\nSTART OF PARALLEL SOLVER\n*******************************\n\n");
+        //Driver Code Here
+        //SudokuBoard* pBoard = new SudokuBoard(complete_board); 
+        //global_board->printBoard(); 
+        
+    } else { 
+        /* Recursive Parallel */ 
+
+        printf("My rank: %d\n", myrank);
+    }
+     
+
+    //Parrallel Killer Things
+
+    /* --------------------- MULT RANKS --------------------- */
+     /*if( myrank != 0 ){
+                recursiveParallel(myrank);
+            } else { 
+                while( false  ){
+                    //wait until all threads do magic
+                    //do things depending on magic
+                    
+                }
+             }*/
+
+    //printf("my rank is: %d\n\n", myrank);
+
+
+/*
+    SudokuBoard* b4 = new SudokuBoard(evil_board);
     printf("***********************\nINITIAL BOARD STATE\n***********************\n");
-    b1->printBoard();  
-    if (b1->solveBoardSequential() == 0){
-        printf("\n***********************\nBOARD IS SOLVED\n***********************\n");
-    }
-    else{
-        printf("board is incomplete or incorrect\n");
-    }
-    b1->printBoard();  
-    delete b1;
-    //////////////////////////////////////////////////////////////////////////////////
-
-    SudokuBoard* b2 = new SudokuBoard(incomplete_board);
-    printf("***********************\nINITIAL BOARD STATE\n***********************\n");
-    b2->printBoard();
-    if (b2->solveBoardSequential() == 0){
-        printf("\n***********************\nBOARD IS SOLVED\n***********************\n");
-    }
-    else{
-        printf("board is incomplete or incorrect\n");
+    b4->printBoard();
+    if (b4->solveBoardParallelDriver(argc, argv) == 0){
+        //printf("\n***********************\nBOARD IS SOLVED\n***********************\n");
     }
 
-    b2->printBoard();    
-    delete b2;
-    //////////////////////////////////////////////////////////////////////////////////
+    //b4->printBoard();    
+    delete b4;
 
-    SudokuBoard* b3 = new SudokuBoard(evil_board);
-    printf("***********************\nINITIAL BOARD STATE\n***********************\n");
-    b3->printBoard();
-    if (b3->solveBoardSequential() == 0){
-        printf("\n***********************\nBOARD IS SOLVED\n***********************\n");
-    }
-    else{
-        printf("board is incomplete or incorrect\n");
-    }
-
-    b3->printBoard();    
-    delete b3;
-
-
+*/
+    MPI_Finalize();
+    if (myrank == 0){  delete global_board; }
     return 0;
 }
 
 /* 
 TODO:
-implement blocks 
-make each tile its own class with a value variable and a list of all possible numbers that can go in it
-make a random sudoku board generator script so when I run it on the supercomputer I can run it on like 100 different sudoku boards
-
-
-HOW TO PARALLELIZE SUDOKU
-https://cse.buffalo.edu/faculty/miller/Courses/CSE633/Sankar-Spring-2014-CSE633.pdf
-
-RASYAS WAY:
-    You know how we look through the 1's first and find if there are "forced spots" 
-    for the 1 to be in because of other rows and columns? Run that in parallel. 
-    Jim: In other words, for a 9x9 board, run 9 different concurrent processes testing 1-9.
-    If any of them make a change, cancel all of them and rerun them all. If they all
-    finish and dont make any changes, recurse after guessing a value and try again.
-
-could also run each of several different algorithms in parallel
-
-
 ****the lists associated with each tile arent even being used right now, 
 and i dont think they EVEN SHOULD BE USED. It is probably slower to constantly be 
 updated these lists for every single change that happens to all elements of each row and each column
 rather than just checking the other (#boardsize) elements in the row or column
-
-
-
-
-
-
-
-
-
 
 
 */

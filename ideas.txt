@@ -17,11 +17,13 @@ ALGORITHM:
 TODO:
     sequential simulated annealing solution with/without guessing and checking
     paralell simualted annealing solution with/without guessing and checking
-
-    better board output
     
-    make an automatic sudoku generator so that we can test our algorithm on 100 random sudoku boards given how many numbers they should all start with (easy vs hard)
-        if our concern is that these will run in .000000002 seconds, running it on 10,000 sudoku boards will give us better numbers
+    make a copy constructor for boards
+
+    make an automatic sudoku generator so that we can test our algorithm on 100 random sudoku boards 
+    given how many numbers they should all start with (easy vs hard)
+        if our concern is that these will run in .000000002 seconds, 
+        running it on 10,000 sudoku boards will give us better numbers
 
     * Go through all the resources, summarize them with bulletpoint notes, see what we can use in our own project
     * Make a 16x16 version 
@@ -58,3 +60,46 @@ https://arxiv.org/abs/0805.0697
 https://citeseerx.ist.psu.edu/document?repid=rep1&type=pdf&doi=27652ea38aa6b36ee2bac358ed042120fd7172c9
 https://shawnjzlee.me/dl/efficient-parallel-sudoku.pdf
 https://alitarhini.wordpress.com/2012/02/27/parallel-sudoku-solver-algorithm/
+
+
+//////////////////////////////////////////////////////////////////////////////////
+    /*SudokuBoard* b1 = new SudokuBoard(complete_board);
+    printf("***********************\nINITIAL BOARD STATE\n***********************\n");
+    b1->printBoard();  
+    if (b1->solveBoardSequential() == 0){
+        printf("\n***********************\nBOARD IS SOLVED\n***********************\n");
+    }
+    else{
+        printf("board is incomplete or incorrect\n");
+    }
+    b1->printBoard();  
+    delete b1;*/
+    //////////////////////////////////////////////////////////////////////////////////
+    /*
+    SudokuBoard* b2 = new SudokuBoard(incomplete_board);
+    printf("***********************\nINITIAL BOARD STATE\n***********************\n");
+    b2->printBoard();
+    if (b2->solveBoardSequential() == 0){
+        printf("\n***********************\nBOARD IS SOLVED\n***********************\n");
+    }
+    else{
+        printf("board is incomplete or incorrect\n");
+    }
+
+    b2->printBoard();    
+    delete b2;
+    */
+    //////////////////////////////////////////////////////////////////////////////////
+    /*SudokuBoard* b3 = new SudokuBoard(evil_board);
+    printf("***********************\nINITIAL BOARD STATE\n***********************\n");
+    b3->printBoard();
+    if (b3->solveBoardSequential() == 0){
+        printf("\n***********************\nBOARD IS SOLVED\n***********************\n");
+    }
+    else{
+        printf("board is incomplete or incorrect\n");
+    }
+
+    b3->printBoard();    
+    delete b3;*/
+    //////////////////////////////////////////////////////////////////////////////////
