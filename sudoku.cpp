@@ -124,8 +124,8 @@ class SudokuBoard{
 
                 //add existing numbers from input after removing whitespace
                 input.erase(std::remove_if(input.begin(), input.end(), ::isspace),input.end());
-                if (input.size() != boardsize * boardsize){
-                    if (input.size() > boardsize * boardsize){
+                if (input.size() != (unsigned int) boardsize * boardsize){
+                    if (input.size() > (unsigned int) boardsize * boardsize){
                         fprintf(stderr, "Input is too big to create a square grid\n\tbased on boardsize: %d\n\n", boardsize);
                         throw;
                     }
@@ -326,7 +326,7 @@ class SudokuBoard{
                 if( myrank == 9 ){ startx = 6; endx = 8; starty = 6; endy = 8; return; }
             }
             else if (boardsize == 16){
-                printf("setblock coordinates function bad\n")
+                printf("setblock coordinates function bad\n");
                 throw;
             }
         }
