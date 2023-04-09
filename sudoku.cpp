@@ -332,6 +332,13 @@ class SudokuBoard{
         }
 
 #endif
+        /// @brief Getter function for board access
+        /// @return a copy of the board
+        vector<vector<Tile>> getBoard(){
+            vector<vector<Tile>> board_copy = tiles;////////////////////////check if this is deep or shallow copy
+            return board_copy;
+        }
+
         /// @brief called by solveBoardParallel (the driver), this function recurses and solves in parallel
         /// @return 0 on success, positive number on error
         int recursiveParallel(int currRank){
@@ -475,9 +482,6 @@ int main(int argc, char** argv){
     MPI_Init(&argc, &argv);
     MPI_Comm_rank(MPI_COMM_WORLD, &myrank); //this processes' individual rank
     MPI_Comm_size(MPI_COMM_WORLD, &number_of_ranks); //the total number of processes in the world
-
-    SudokuBoard* global_board;
-
     /*
     use MPI_win or whatever to make a global 2d array
     
@@ -489,17 +493,30 @@ int main(int argc, char** argv){
     
     */
 
+    // Allocate shared memory for SudokuBoard object
+    MPI_Aint size_of_sudoku_board = sizeof(SudokuBoard);
+    int disp_unit = sizeof(int);
+    MPI_Info info = MPI_INFO_NULL;
+    SudokuBoard* baseptr;
+    MPI_Win win;
+    MPI_Win_allocate_shared(size_of_sudoku_board, disp_unit, info, MPI_COMM_WORLD, (void**)&baseptr, &win);
+
+    // Construct SudokuBoard object in shared memory
+    SudokuBoard* global_board = new (baseptr) SudokuBoard(evil_board);
+
     if( myrank == 0 ){
-        global_board = new SudokuBoard(complete_board);
+        //global_board = new SudokuBoard(complete_board);
         printf("*******************************\nINITIAL SEQUENTIAL BOARD STATE\n*******************************\n\n");
         global_board->printBoard();  
         
-        if (global_board->solveBoardSequential() == 0){
+        /*if (global_board->solveBoardSequential() == 0){
             printf("\n*******************************\nBOARD IS SOLVED\n*******************************\n\n");
         }
         else{
             printf("board is incomplete or incorrect\n");
-        }
+        }*/
+
+        global_board->setValue(0,0,8);
         
         global_board->printBoard();  
         printf("\n*******************************\nEND OF SEQUENTIAL SOLVER\n*******************************\n\n");
@@ -510,8 +527,9 @@ int main(int argc, char** argv){
     /*---------------------------------------------------*/
     MPI_Barrier(MPI_COMM_WORLD);
     /*---------------------------------------------------*/
+    printf("rank: %d, tiles[0][0]: %d\n", myrank, global_board->getBoard()[0][0].getVal());
 
-    
+    /*
     if( myrank == 0 ){
         printf("\n*******************************\nSTART OF PARALLEL SOLVER\n*******************************\n\n");
         //Driver Code Here
@@ -519,11 +537,11 @@ int main(int argc, char** argv){
         //global_board->printBoard(); 
 
     } else { 
-        /* Recursive Parallel */ 
+        // Recursive Parallel
 
-        printf("My rank: %d\n", myrank);
+        //printf("My rank: %d\n", myrank);
     }
-     
+    */     
 
     //Parrallel Killer Things
 
@@ -553,7 +571,8 @@ int main(int argc, char** argv){
     delete b4;
 
 */
+    MPI_Win_free(&win);
     MPI_Finalize();
-    if (myrank == 0){  delete global_board; }
+    //dont need to free board because the shared mem is freed
     return 0;
 }
