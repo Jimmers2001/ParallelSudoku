@@ -108,7 +108,7 @@ class SudokuBoard{
 
     public:
         SudokuBoard(string input){
-            if (input.size() < 0){
+            if (input.size() < 81){
                 fprintf(stderr, "Too small of a board input string\n");
                 throw;
             }
@@ -145,7 +145,7 @@ class SudokuBoard{
                 }
             }
         }
-        
+#if 1
         //kinda useless if i always just use tiles[y][x]
         /// @brief Attempts to retrieve a value of a particular tile in the grid
         /// @param x the horizontal x position 
@@ -326,17 +326,19 @@ class SudokuBoard{
                 if( myrank == 9 ){ startx = 6; endx = 8; starty = 6; endy = 8; return; }
             }
             else if (boardsize == 16){
+                printf("setblock coordinates function bad\n")
                 throw;
             }
         }
 
+#endif
         /// @brief called by solveBoardParallel (the driver), this function recurses and solves in parallel
         /// @return 0 on success, positive number on error
         int recursiveParallel(int currRank){
             int startx, starty, endx, endy;
             setBlockCoordinates(currRank, startx, starty, endx, endy);
 
-            //fprint("", startx, starty, endx, endy );
+            printf("rank: %d, (%d, %d, %d, %d)\n", currRank, startx, starty, endx, endy );
             //test board
             int row = 0;
             int col = 0;
@@ -491,12 +493,14 @@ int main(int argc, char** argv){
         global_board = new SudokuBoard(complete_board);
         printf("*******************************\nINITIAL SEQUENTIAL BOARD STATE\n*******************************\n\n");
         global_board->printBoard();  
+        
         if (global_board->solveBoardSequential() == 0){
             printf("\n*******************************\nBOARD IS SOLVED\n*******************************\n\n");
         }
         else{
             printf("board is incomplete or incorrect\n");
         }
+        
         global_board->printBoard();  
         printf("\n*******************************\nEND OF SEQUENTIAL SOLVER\n*******************************\n\n");
     } 
@@ -553,13 +557,3 @@ int main(int argc, char** argv){
     if (myrank == 0){  delete global_board; }
     return 0;
 }
-
-/* 
-TODO:
-****the lists associated with each tile arent even being used right now, 
-and i dont think they EVEN SHOULD BE USED. It is probably slower to constantly be 
-updated these lists for every single change that happens to all elements of each row and each column
-rather than just checking the other (#boardsize) elements in the row or column
-
-
-*/
