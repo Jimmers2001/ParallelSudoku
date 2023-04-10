@@ -5,7 +5,7 @@
 #include <string>
 #include <mpi.h>
 #include <mutex>
-
+#include "tile.h"
 using namespace std;
 
 //GLOBAL DEFINES
@@ -58,45 +58,6 @@ std::mutex global_mutex;
         000800090\
         ";
 #endif
-
-/// @param val The value at that specific coordinate value
-/// @param pos_values The range of numbers that could be valid in this location
-class Tile{
-    private:
-        int val = 0;
-        vector<int> pos_values;
-    public:
-        Tile(int v){/////////////////////////loop through boardsize instead of 9
-            val = v;
-            pos_values.push_back(1);
-            pos_values.push_back(2);
-            pos_values.push_back(3);
-            pos_values.push_back(4);
-            pos_values.push_back(5);
-            pos_values.push_back(6);
-            pos_values.push_back(7);
-            pos_values.push_back(8);
-            pos_values.push_back(9);
-        }
-
-        /// @brief Change the value of a tile
-        /// @param v value input
-        /// @return 0 on success, 1 on failure
-        int setVal(int v){
-            if (v < 0 || v > boardsize){
-                fprintf(stderr, "Changing to an invalid value %d\n", v);
-                return 1;
-            }
-            val = v;
-            return 0;
-        }
-
-        /// @brief Get the value of a tile
-        /// @return the value being gotten
-        int getVal(){
-            return val;
-        }
-};
 
 /// @brief A square sudoku board defined by a boardsize global variable initialized to 0. It 
 /// @brief requires that all the numbers from 1-boardsize inclusive exist in each row and column without repeats
