@@ -20,6 +20,8 @@ TODO:
     
     make a copy constructor for boards
 
+    read from file instead of from string
+
     * Go through all the resources, summarize them with bulletpoint notes, see what we can use in our own project
     * Make a 16x16 version 
 
