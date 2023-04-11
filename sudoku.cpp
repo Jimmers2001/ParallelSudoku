@@ -5,58 +5,55 @@
 #include <string>
 #include <mpi.h>
 #include <mutex>
+#include <numeric>
 #include "tile.h"
 using namespace std;
 
 //GLOBAL DEFINES
-int boardsize = 9;
+//numbers 1-9 and then continuing with letters a-z for 10-36
+//boardsize defined in tile.h
+
 int EMPTY = 0;
 std::mutex global_mutex;
 
 //define some board examples
-#if 1
-    string input1 = "\
-        1234\
-        2341\
-        3412\
-        4123\
-        ";
+string test_board = "\
+    1234000000000000\
+    5678000000000000\
+    9abc000000000000\
+    defg000000000000\
+    0000000000000000\
+    0000000000000000\
+    0000000000000000\
+    0000000000000000\
+    0000000000000000\
+    ";
 
-    string empty_board = "\
-        000000000\
-        000000000\
-        000000000\
-        000000000\
-        000000000\
-        000000000\
-        000000000\
-        000000000\
-        000000000\
-        ";
-
-    string complete_board = "\
-        123456789\
-        789123456\
-        456789123\
-        312845967\
-        697312845\
-        845697312\
-        231574698\
-        968231574\
-        574968231\
-        ";
-
-    string evil_board = "\
-        020040009\
-        080000700\
-        704600001\
-        309080100\
-        000005006\
-        070000000\
-        002000000\
-        401090300\
-        000800090\
-        ";
+#ifdef BOARDSIZE9
+string empty_board = "\
+    000000000\
+    000000000\
+    000000000\
+    000000000\
+    000000000\
+    000000000\
+    000000000\
+    000000000\
+    000000000\
+    ";
+#endif
+#ifdef BOARDSIZE16
+string emptyboard = "\
+    0000000000000000\
+    0000000000000000\
+    0000000000000000\
+    0000000000000000\
+    0000000000000000\
+    0000000000000000\
+    0000000000000000\
+    0000000000000000\
+    0000000000000000\
+    ";
 #endif
 
 /// @brief A square sudoku board defined by a boardsize global variable initialized to 0. It 
@@ -95,12 +92,20 @@ class SudokuBoard{
                         throw;
                     }
                     
-                    printf("Input: %s\n", input.c_str());
                 }
                 else{
                     for (int i = 0; i < boardsize; i++){
                         for (int j = 0; j < boardsize; j++){
-                            tiles[i][j].setVal((int)input[(j*boardsize) + i]-48); //convert char ASCII to integer
+                            char item = input[(j*boardsize) + i];
+                            printf("item: %c\n", item);return ;
+                            //it is a number
+                            if (isdigit(item)){
+                                tiles[i][j].setVal((int)input[(j*boardsize) + i]-48); //convert char ASCII to integer
+                            }
+                            //it is a letter
+                            else{
+                                printf("FOUND A LETTER: %c\n", item);
+                            }
                         }
                     }
                 }
@@ -386,21 +391,45 @@ class SudokuBoard{
         /// @param row current y
         /// @returns true if can support because of no duplicate, false otherwise
         bool canSupportinBlock(int row, int col, int val){
-            //find which block to check in
-            int xstart = (col / 3) * 3; //round down and then scale up
-            int ystart = (row / 3) * 3;
-            int xend = xstart+3;
-            int yend = ystart+3;
+            //3x3 blocks
+            if (boardsize == 9){
+                //find which block to check in
+                int xstart = (col / 3) * 3; //round down and then scale up
+                int ystart = (row / 3) * 3;
+                int xend = xstart+3;
+                int yend = ystart+3;
 
-            for (int i = xstart; i < xend; i++){
-                for (int j = ystart; j < yend; j++){                    
-                    if (val == tiles[j][i].getVal()){
-                        return false;
+                for (int i = xstart; i < xend; i++){
+                    for (int j = ystart; j < yend; j++){                    
+                        if (val == tiles[j][i].getVal()){
+                            return false;
+                        }
                     }
                 }
+                
+                return true;
             }
-            
-            return true;
+            //4x4 blocks
+            else if (boardsize == 16){//////////////////////////////////////////gotta test this
+                return -1;
+                //find which block to check in
+                int xstart = (col / 4) * 4; //round down and then scale up
+                int ystart = (row / 4) * 4;
+                int xend = xstart+4;
+                int yend = ystart+4;
+
+                for (int i = xstart; i < xend; i++){
+                    for (int j = ystart; j < yend; j++){                    
+                        if (val == tiles[j][i].getVal()){
+                            return false;
+                        }
+                    }
+                }
+                
+                return true;
+
+            }
+            return -1;
         }
 
         /// @brief Sequential attempt to fill in every empty grid in the board
@@ -442,7 +471,8 @@ class SudokuBoard{
         }
         
         //vector begins full and after random attempts removes elements until empty
-        vector<int> nums = {1,2,3,4,5,6,7,8,9};
+        vector<int> nums(boardsize);
+        iota(nums.begin(), nums.end(), 1);//vector where ith element is i+1 (1,2,3...16)
         int n;
 
         while (nums.size() > 0){
@@ -483,7 +513,7 @@ SudokuBoard* generateSudokuBoard(string difficulty){
     } else if (difficulty == "expert"){
         number_of_givens = 7 + (rand() % static_cast<int>(14 - 7 + 1)); //[7,14] exclusive range
     } else { 
-        number_of_givens = 40 + (rand() % static_cast<int>(70 - 40 + 1)); //[40,70] exclusive range
+        number_of_givens = 20 + (rand() % static_cast<int>(30 - 20 + 1)); //[40,70] exclusive range
     }
      
     printf("# of givens: %d\n", number_of_givens);
@@ -584,7 +614,7 @@ int main(int argc, char** argv){
     /*if( myrank == 0 ){
         printf("\n*******************************\nSTART OF PARALLEL SOLVER\n*******************************\n\n");
         //Driver Code Here
-        //SudokuBoard* pBoard = new SudokuBoard(complete_board); 
+        //SudokuBoard* pBoard = new SudokuBoard(complete_board9); 
         //global_board->printBoard(); 
 
     } else { 
@@ -611,7 +641,7 @@ int main(int argc, char** argv){
 
     //printf("my rank is: %d\n\n", myrank);
 
-    SudokuBoard* b4 = new SudokuBoard(evil_board);
+    SudokuBoard* b4 = new SudokuBoard(evil_board9);
     printf("***********************\nINITIAL BOARD STATE\n***********************\n");
     b4->printBoard();
     if (b4->solveBoardParallelDriver(argc, argv) == 0){
