@@ -7,6 +7,14 @@
 #include <mutex>
 using namespace std;
 
+#ifdef BOARDSIZE9
+int boardsize = 9;
+#endif
+
+#ifdef BOARDSIZE16
+int boardsize = 16;
+#endif
+
 /// @param val The value at that specific coordinate value
 /// @param pos_values The range of numbers that could be valid in this location
 class Tile{
@@ -14,17 +22,11 @@ class Tile{
         int val = 0;
         vector<int> pos_values;
     public:
-        Tile(int v){/////////////////////////loop through boardsize instead of 9
+        Tile(int v){
             val = v;
-            pos_values.push_back(1);
-            pos_values.push_back(2);
-            pos_values.push_back(3);
-            pos_values.push_back(4);
-            pos_values.push_back(5);
-            pos_values.push_back(6);
-            pos_values.push_back(7);
-            pos_values.push_back(8);
-            pos_values.push_back(9);
+            for (int i = 1; i <= boardsize; i++){
+                pos_values.push_back(i);
+            }
         }
 
         /// @brief Change the value of a tile

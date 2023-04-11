@@ -20,11 +20,6 @@ TODO:
     
     make a copy constructor for boards
 
-    make an automatic sudoku generator so that we can test our algorithm on 100 random sudoku boards 
-    given how many numbers they should all start with (easy vs hard)
-        if our concern is that these will run in .000000002 seconds, 
-        running it on 10,000 sudoku boards will give us better numbers
-
     * Go through all the resources, summarize them with bulletpoint notes, see what we can use in our own project
     * Make a 16x16 version 
 
