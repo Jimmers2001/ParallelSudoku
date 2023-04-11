@@ -458,7 +458,7 @@ int main(int argc, char** argv){
     MPI_Aint size_of_sudoku_board = sizeof(SudokuBoard);
     int disp_unit = sizeof(int);
     MPI_Info info = MPI_INFO_NULL;
-    SudokuBoard* baseptr;
+    SudokuBoard* baseptr; 
     MPI_Win win;
     MPI_Win_allocate_shared(size_of_sudoku_board, disp_unit, info, MPI_COMM_WORLD, (void**)&baseptr, &win);
 
@@ -488,6 +488,7 @@ int main(int argc, char** argv){
     /*---------------------------------------------------*/
     MPI_Barrier(MPI_COMM_WORLD);
     /*---------------------------------------------------*/
+    
     printf("rank: %d, tiles[0][0]: %d\n", myrank, global_board->getBoard()[0][0].getVal());
 
     /*
