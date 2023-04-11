@@ -22,16 +22,16 @@ std::mutex global_mutex;
         4123\
         ";
 
-    string incomplete_board = "\
+    string empty_board = "\
         000000000\
         000000000\
-        000080000\
         000000000\
-        000000005\
-        000000002\
-        200000600\
-        000000004\
-        500060000\
+        000000000\
+        000000000\
+        000000000\
+        000000000\
+        000000000\
+        000000000\
         ";
 
     string complete_board = "\
@@ -107,19 +107,17 @@ class SudokuBoard{
             }
         }
 #if 1
-        //kinda useless if i always just use tiles[y][x]
+        //kinda useless if i always just use tiles[x][y]
         /// @brief Attempts to retrieve a value of a particular tile in the grid
         /// @param x the horizontal x position 
         /// @param y the vertical y position 
-        /// @param val the return value at that position in the grid
-        /// @return 0 on success, positive number on failure
-        int getValue(int x, int y, int& val){
+        /// @return the value
+        int getValue(int x, int y){
             if (x > width || x < 0 || y > height || y < 0){
                 fprintf(stderr, "Cannot get value at invalid position: %d, %d\n", x, y);
                 return 1;
             }
-            val = tiles[y][x].getVal();
-            return 0;
+            return tiles[x][y].getVal();;
         }
 
         /// @brief Attempts to assign a value to a particular tile in the grid
@@ -132,7 +130,7 @@ class SudokuBoard{
                 fprintf(stderr, "Cannot set value %d at invalid position: %d, %d\n", x, y, val);
                 return 1;
             }
-            tiles[y][x].setVal(val);
+            tiles[x][y].setVal(val);
             return 0;
         }
 
@@ -433,8 +431,117 @@ class SudokuBoard{
             //could not solve the board for some reason
             return 1;
         }
+
+    /// @brief Randomly fills up a board
+    /// @return returns 0 on success, 1 on failure to fill board
+    int randomBoardFill(){
+        //test board
+        int row = 0;
+        int col = 0;
+        if (!findEmptyTile(row, col)){
+            return 0;
+        }
+        
+        //vector begins full and after random attempts removes elements until empty
+        vector<int> nums = {1,2,3,4,5,6,7,8,9};
+        int n;
+
+        while (nums.size() != 0){
+            n = (rand() % (nums.size())); //[0,9] exclusive index of nums array
+
+            // the tile can support the value in (row, col)
+            if (canSupportinRow(row, nums[n]) && canSupportinCol(col, nums[n]) && canSupportinBlock(row, col, nums[n])){
+                //test out that number and continue
+                tiles[row][col].setVal(nums[n]);
+                if (randomBoardFill() == 0){
+                    //filled board successfully
+                    return 0;
+                }
+
+                //undo and try a different number
+                tiles[row][col].setVal(EMPTY);
+            }
+
+            //already guessed n so dont randomly guess again
+            nums.erase(nums.begin() + n);
+        }
+        
+        //could not fill the board for some reason
+        return 1;
+    }
 };
 
+/// @brief Randomly generates a sudoku board
+/// @param difficulty string that determines the range of the number of givens to randomly start the board with
+/// @return Uses boardsize to make a sudoku board to solve
+SudokuBoard generateSudokuBoard(string difficulty){
+    //Seed the random number generator with the current time
+    srand(time(0));
+    //chose the number of givens to include in the generated board
+    unsigned int number_of_givens;
+    if (difficulty == "evil"){
+        number_of_givens = 3 + (rand() % static_cast<int>(6 - 3 + 1)); //[3,6] exclusive range
+    } else if (difficulty == "expert"){
+        number_of_givens = 7 + (rand() % static_cast<int>(14 - 7 + 1)); //[7,14] exclusive range
+    } else { 
+        number_of_givens = 40 + (rand() % static_cast<int>(70 - 40 + 1)); //[40,70] exclusive range
+    }
+     
+    printf("# of givens: %d\n", number_of_givens);
+
+    //initialize a board to empty and add in random given numbers
+    SudokuBoard* random_board = new SudokuBoard(empty_board);
+    random_board->randomBoardFill(); //complete the board and then remove elements
+
+    //current coordinate position
+    int x;
+    int y;
+
+    //remove elements in the board until only number_of_givens are left
+    unsigned int removals = 0;
+    while (removals < (boardsize*boardsize)-number_of_givens){
+        x = rand() % (boardsize);
+        y = rand() % (boardsize);
+
+        //if we havent assigned a value to that spot yet
+        if (random_board->getValue(x,y) != 0){
+            random_board->setValue(x,y,0);
+            removals++;
+        }
+    }
+    return *random_board;/////////////////////////////////////////////////gotta eventually deallocate this memory, so i think i need to return random_board the pointer, not the dereference
+}
+
+void runTests(int number_of_tests){
+    for (int i = 0; i < number_of_tests; i++){
+        SudokuBoard* b_seq = new SudokuBoard(generateSudokuBoard("evil")); //random board
+        //SudokuBoard* b_par = new SudokuBoard(b_seq); //copy to compare runtime between sequential and parallel
+        printf("*******************************\nINITIAL SEQUENTIAL BOARD STATE\n*******************************\n\n");
+        b_seq->printBoard();  
+    
+        if (b_seq->solveBoardSequential() == 0){
+            printf("\n*******************************\nBOARD IS SOLVED\n*******************************\n\n");
+        }
+        else{
+            printf("board is incomplete or incorrect\n");
+        }
+
+        b_seq->printBoard();  
+        printf("\n*******************************\nEND OF SEQUENTIAL SOLVER\n*******************************\n\n");
+        
+        /***********************************************************************************/
+
+        //solveBoardParallelDriver
+
+        
+        delete b_seq;
+        //delete b_par;
+    }
+    
+    return;
+}
+
+#define SIZE 9
 //POTENTIALLY ADD THE 3X3 OR BOARDSIZE%3 X BOARDSIZE%3 BLOCKS AS WELL
 int main(int argc, char** argv){
     int myrank;
@@ -443,44 +550,10 @@ int main(int argc, char** argv){
     MPI_Init(&argc, &argv);
     MPI_Comm_rank(MPI_COMM_WORLD, &myrank); //this processes' individual rank
     MPI_Comm_size(MPI_COMM_WORLD, &number_of_ranks); //the total number of processes in the world
-    /*
-    use MPI_win or whatever to make a global 2d array
-    
-    initialize global_board to turn ^^^ that array into its member variable
-
-    in the future, ranks will use the sudokuboard copy constructor off of global_board
-
-    if this doesnt work, try sends and receives but high overhead and very inefficient    
-    
-    */
-
-    // Allocate shared memory for SudokuBoard object
-    MPI_Aint size_of_sudoku_board = sizeof(SudokuBoard);
-    int disp_unit = sizeof(int);
-    MPI_Info info = MPI_INFO_NULL;
-    SudokuBoard* baseptr;
-    MPI_Win win;
-    MPI_Win_allocate_shared(size_of_sudoku_board, disp_unit, info, MPI_COMM_WORLD, (void**)&baseptr, &win);
-
-    // Construct SudokuBoard object in shared memory
-    SudokuBoard* global_board = new (baseptr) SudokuBoard(evil_board);
 
     if( myrank == 0 ){
-        //global_board = new SudokuBoard(complete_board);
-        printf("*******************************\nINITIAL SEQUENTIAL BOARD STATE\n*******************************\n\n");
-        global_board->printBoard();  
-        
-        /*if (global_board->solveBoardSequential() == 0){
-            printf("\n*******************************\nBOARD IS SOLVED\n*******************************\n\n");
-        }
-        else{
-            printf("board is incomplete or incorrect\n");
-        }*/
-
-        global_board->setValue(0,0,8);
-        
-        global_board->printBoard();  
-        printf("\n*******************************\nEND OF SEQUENTIAL SOLVER\n*******************************\n\n");
+        //SudokuBoard* global_board = new SudokuBoard(evil_board);
+        runTests(1);
     } 
     
     /*---------------------------------------------------*/
@@ -488,10 +561,28 @@ int main(int argc, char** argv){
     /*---------------------------------------------------*/
     MPI_Barrier(MPI_COMM_WORLD);
     /*---------------------------------------------------*/
-    printf("rank: %d, tiles[0][0]: %d\n", myrank, global_board->getBoard()[0][0].getVal());
+    
+    // Each process modifies a subset of the board array
+    /*int i, j;
+    for (i = myrank; i < boardsize; i += boardsize) {
+        for (j = 0; j < boardsize; j++) {
+           global_board_array[i][j] += myrank;
+        }
+    }*/
 
     /*
-    if( myrank == 0 ){
+     if ( myrank == 0) {
+        int i, j;
+        printf("Board array after all processes have modified:\n");
+        for (i = 0; i < boardsize; i++) {
+            for (j = 0; j < boardsize; j++) {
+                printf("%d ", global_board_array[i][j]);
+            }
+            printf("\n");
+        }
+    }*/
+
+    /*if( myrank == 0 ){
         printf("\n*******************************\nSTART OF PARALLEL SOLVER\n*******************************\n\n");
         //Driver Code Here
         //SudokuBoard* pBoard = new SudokuBoard(complete_board); 
@@ -499,28 +590,28 @@ int main(int argc, char** argv){
 
     } else { 
         // Recursive Parallel
-
-        //printf("My rank: %d\n", myrank);
-    }
-    */     
+    }*/
+    //printf("My rank: %d and global_board_array[0] is: %d\n", myrank, global_board_array[0][0]);///////
+    
+      
 
     //Parrallel Killer Things
 
     /* --------------------- MULT RANKS --------------------- */
-     /*if( myrank != 0 ){
-                recursiveParallel(myrank);
-            } else { 
-                while( false  ){
-                    //wait until all threads do magic
-                    //do things depending on magic
-                    
-                }
-             }*/
+    // if( myrank != 0 ){
+    //My board = constructor(global_board_array)
+        //recursiveParallel(myrank);
+    /*} else { 
+
+        while( false  ){
+            //wait until all threads do magic
+            //do things depending on magic
+            
+        }
+    }
 
     //printf("my rank is: %d\n\n", myrank);
 
-
-/*
     SudokuBoard* b4 = new SudokuBoard(evil_board);
     printf("***********************\nINITIAL BOARD STATE\n***********************\n");
     b4->printBoard();
@@ -532,8 +623,6 @@ int main(int argc, char** argv){
     delete b4;
 
 */
-    MPI_Win_free(&win);
     MPI_Finalize();
-    //dont need to free board because the shared mem is freed
     return 0;
 }
