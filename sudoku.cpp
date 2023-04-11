@@ -100,7 +100,7 @@ class SudokuBoard{
                 else{
                     for (int i = 0; i < boardsize; i++){
                         for (int j = 0; j < boardsize; j++){
-                            tiles[j][i].setVal((int)input[(j*boardsize) + i]-48); //convert char ASCII to integer
+                            tiles[i][j].setVal((int)input[(j*boardsize) + i]-48); //convert char ASCII to integer
                         }
                     }
                 }
@@ -257,7 +257,6 @@ class SudokuBoard{
             for (row = 0; row < boardsize; row++){
                 for (col = 0; col < boardsize; col++){
                     if (tiles[row][col].getVal() == EMPTY){
-                        //printf("found empty tile at row %d col %d\n", row, col);
                         return true;
                     }
                 }
@@ -354,7 +353,7 @@ class SudokuBoard{
              }
                  
             //test board and terminate
-            MPI_Finalize();
+            //MPI_Finalize();
             return checkBoard();
         }
 
@@ -446,7 +445,7 @@ class SudokuBoard{
         vector<int> nums = {1,2,3,4,5,6,7,8,9};
         int n;
 
-        while (nums.size() != 0){
+        while (nums.size() > 0){
             n = (rand() % (nums.size())); //[0,9] exclusive index of nums array
 
             // the tile can support the value in (row, col)
@@ -474,7 +473,7 @@ class SudokuBoard{
 /// @brief Randomly generates a sudoku board
 /// @param difficulty string that determines the range of the number of givens to randomly start the board with
 /// @return Uses boardsize to make a sudoku board to solve
-SudokuBoard generateSudokuBoard(string difficulty){
+SudokuBoard* generateSudokuBoard(string difficulty){
     //Seed the random number generator with the current time
     srand(time(0));
     //chose the number of givens to include in the generated board
@@ -491,7 +490,7 @@ SudokuBoard generateSudokuBoard(string difficulty){
 
     //initialize a board to empty and add in random given numbers
     SudokuBoard* random_board = new SudokuBoard(empty_board);
-    random_board->randomBoardFill(); //complete the board and then remove elements
+    random_board->randomBoardFill(); //complete the board randomly and then remove elements
 
     //current coordinate position
     int x;
@@ -509,12 +508,14 @@ SudokuBoard generateSudokuBoard(string difficulty){
             removals++;
         }
     }
-    return *random_board;/////////////////////////////////////////////////gotta eventually deallocate this memory, so i think i need to return random_board the pointer, not the dereference
+    return random_board; //returns the board* for dereferencing in the future
 }
 
+/// @brief Runs all solvers potentially many times
+/// @param number_of_tests The number of iterations to do 
 void runTests(int number_of_tests){
     for (int i = 0; i < number_of_tests; i++){
-        SudokuBoard* b_seq = new SudokuBoard(generateSudokuBoard("evil")); //random board
+        SudokuBoard* b_seq = generateSudokuBoard("evil"); //random board
         //SudokuBoard* b_par = new SudokuBoard(b_seq); //copy to compare runtime between sequential and parallel
         printf("*******************************\nINITIAL SEQUENTIAL BOARD STATE\n*******************************\n\n");
         b_seq->printBoard();  
@@ -541,19 +542,17 @@ void runTests(int number_of_tests){
     return;
 }
 
-#define SIZE 9
 //POTENTIALLY ADD THE 3X3 OR BOARDSIZE%3 X BOARDSIZE%3 BLOCKS AS WELL
 int main(int argc, char** argv){
-    int myrank;
-    int number_of_ranks;
+    int myrank = 0;
+    int number_of_ranks = 0;
 
     MPI_Init(&argc, &argv);
     MPI_Comm_rank(MPI_COMM_WORLD, &myrank); //this processes' individual rank
     MPI_Comm_size(MPI_COMM_WORLD, &number_of_ranks); //the total number of processes in the world
 
     if( myrank == 0 ){
-        //SudokuBoard* global_board = new SudokuBoard(evil_board);
-        runTests(1);
+        runTests(1);///////////////////////////////////////can all mpi ranks do whats inside of this even though its within the myrank==0
     } 
     
     /*---------------------------------------------------*/
@@ -623,6 +622,7 @@ int main(int argc, char** argv){
     delete b4;
 
 */
-    MPI_Finalize();
+    MPI_Finalize(); //mpi causes false positives for memory leaks. 
+    //DRMEMORY expects 427,000 bytes reachable and valgrind expects 71,000 bytes. Dont worry :)
     return 0;
 }
