@@ -18,15 +18,22 @@ std::mutex global_mutex;
 
 //define some board examples
 string test_board = "\
-    1234000000000000\
-    5678000000000000\
-    8abc000000000000\
-    defg000000000000\
-    0000000000000000\
-    0000000000000000\
-    0000000000000000\
-    0000000000000000\
-    0000000000000000\
+    0fb04e19a050cd00\
+    0d0600b290g000a0\
+    e90180000b0c005f\
+    a08507002400bg60\
+    000000fb00a7090e\
+    000000000d000084\
+    065b70000g081023\
+    0ag0068ce00b07d0\
+    000g00d8000a2f0c\
+    503e0a9000bgd806\
+    00df0231009e0000\
+    00406f0012d000b7\
+    3000e00a09000002\
+    10690000g0700c0d\
+    0000g00006803000\
+    00041b0000f3e00g\
     ";
 
 #ifdef BOARDSIZE9
@@ -53,6 +60,13 @@ string empty_board = "\
     0000000000000000\
     0000000000000000\
     0000000000000000\
+    0000000000000000\
+    0000000000000000\
+    0000000000000000\
+    0000000000000000\
+    0000000000000000\
+    0000000000000000\
+    0000000000000000\
     ";
 #endif
 
@@ -67,7 +81,7 @@ class SudokuBoard{
     public:
         SudokuBoard(string input){
             if (input.size() < (unsigned int) boardsize*boardsize){
-                //fprintf(stderr, "Too small of a board input string\n");
+                fprintf(stderr, "Too small of a board input string. size: %u, boardsize: %d\n", (unsigned int) input.size(), boardsize);
                 //throw;
             }
             else{
@@ -83,29 +97,30 @@ class SudokuBoard{
                 //add existing numbers from input after removing whitespace
                 input.erase(std::remove_if(input.begin(), input.end(), ::isspace),input.end());
                 if (input.size() != (unsigned int) boardsize * boardsize){
-                    /*if (input.size() > (unsigned int) boardsize * boardsize){
-                        fprintf(stderr, "Input is too big to create a square grid\n\tbased on boardsize: %d\n\n", boardsize);
+                    if (input.size() > (unsigned int) boardsize * boardsize){
+                        fprintf(stderr, "Input (%u) is too big to create a square grid\n\tbased on boardsize: %d\n\n", (unsigned int) input.size(), boardsize);
                         throw;
                     }
                     else{
                         fprintf(stderr, "Input is too small to create a square grid\n\tbased on boardsize: %d\n\n", boardsize);
                         throw;
-                    }*/
+                    }
                     
                 }
                 else{
                     for (int i = 0; i < boardsize; i++){
                         for (int j = 0; j < boardsize; j++){
                             char item = input[(j*boardsize) + i];
-                            printf("item: %c\n", item);
-                            printf("item as int: %d\n", (int)item-48);
                             //it is a number
                             if (isdigit(item)){
-                                tiles[i][j].setVal((int)input[(j*boardsize) + i]-48); //convert char ASCII to integer
+                                int num = (int)input[(j*boardsize) + i]-48; //convert char ASCII to integer
+                                tiles[i][j].setVal(num); 
                             }
+
                             //it is a letter
                             else{
-                                printf("FOUND A LETTER: %c\n", item);
+                                int converted_num = 9+((int)item)-48-48; //letter a = 10, b = 11... etc
+                                tiles[i][j].setVal(converted_num);
                             }
                         }
                     }
@@ -141,30 +156,57 @@ class SudokuBoard{
         }
 
         void printBoard(){
-            for (int i = 0; i < boardsize; i++){
-                if( i%3 == 0 ){ 
-                     printf("+====+====+====+====+====+====+====+====+====+\n");
-                }
-                else { 
-                    printf("+----+----+----+----+----+----+----+----+----+\n");
-                }
-
-                for (int j = 0; j < boardsize; j++){
-                    if( j%3 == 0 ) {
-                        if(tiles[i][j].getVal() == 0){
-                            printf("║    ");
-                        } else {  printf("║ %02d ", tiles[i][j].getVal()); }
-                    } 
-                    else { 
-                       if(tiles[i][j].getVal() == 0){
-                            printf("|    ");
-                        } else {  printf("| %02d ", tiles[i][j].getVal()); }
+            if (boardsize == 9){
+                for (int i = 0; i < boardsize; i++){
+                    if( i%3 == 0 ){ 
+                        printf("+====+====+====+====+====+====+====+====+====+\n");
                     }
-                }
-                printf("║\n");
+                    else { 
+                        printf("+----+----+----+----+----+----+----+----+----+\n");
+                    }
+
+                    for (int j = 0; j < boardsize; j++){
+                        if( j%3 == 0 ) {
+                            if(tiles[j][i].getVal() == 0){
+                                printf("║    ");
+                            } else {  printf("║ %02d ", tiles[j][i].getVal()); }
+                        } 
+                        else { 
+                        if(tiles[j][i].getVal() == 0){
+                                printf("|    ");
+                            } else {  printf("| %02d ", tiles[j][i].getVal()); }
+                        }
+                    }
+                    printf("║\n");
+                } 
+                printf("+====+====+====+====+====+====+====+====+====+\n");
             }
-            
-            printf("+====+====+====+====+====+====+====+====+====+\n");
+            if (boardsize == 16) {
+                for (int i = 0; i < boardsize; i++) {
+                    if (i % 4 == 0) {
+                        printf("+======+======+======+======+======+======+======+======+======+======+======+======+======+======+======+======+\n");
+                    } else {
+                        printf("+------+------+------+------+------+------+------+------+------+------+------+------+------+------+------+------+\n");
+                    }
+                    for (int j = 0; j < boardsize; j++) {
+                        if (j % 4 == 0) {
+                            if (tiles[j][i].getVal() == 0) {
+                                printf("║      ");
+                            } else {
+                                printf("║ %02d   ", tiles[j][i].getVal());
+                            }
+                        } else {
+                            if (tiles[j][i].getVal() == 0) {
+                                printf("|      ");
+                            } else {
+                                printf("| %02d   ", tiles[j][i].getVal());
+                            }
+                        }
+                    }
+                    printf("║\n");
+                }
+                printf("+======+======+======+======+======+======+======+======+======+======+======+======+======+======+======+======+\n");
+            }
         }
         
         /// @brief Checks the same column for duplicate value of current position
@@ -220,10 +262,22 @@ class SudokuBoard{
                 }
             }
             else if (boardsize == 16){
-                return false;///////////////////////////////////////hardcoded for 9 only
-            }
-            
-            
+                //find which block the current position is in
+                int xstart = (curx / 4) * 4; //round down and then scale up
+                int ystart = (cury / 4) * 4;
+                int xend = xstart+4;
+                int yend = ystart+4;
+
+                for (int i = xstart; i < xend; i++){
+                    for (int j = ystart; j < yend; j++){
+                        if (cury == j && curx == i){continue;}
+                        
+                        if (tiles[cury][curx].getVal() == tiles[j][i].getVal()){
+                            return true;
+                        }
+                    }
+                }
+            }            
             return false;
         }
 
@@ -297,7 +351,6 @@ class SudokuBoard{
             }
         }
 
-#endif
         /// @brief Getter function for board access
         /// @return a copy of the board
         vector<vector<Tile>> getBoard(){
@@ -387,7 +440,7 @@ class SudokuBoard{
                     return false;
             return true;
         }
-
+#endif
         ///THIS IS HARDCODED TO 9X9 FOR NOW///////////////////////////////////////////
         /// @brief Checks the same block for existence of val
         /// @param col current x
@@ -409,12 +462,9 @@ class SudokuBoard{
                         }
                     }
                 }
-                
-                return true;
             }
             //4x4 blocks
             else if (boardsize == 16){//////////////////////////////////////////gotta test this
-                return true;
                 //find which block to check in
                 int xstart = (col / 4) * 4; //round down and then scale up
                 int ystart = (row / 4) * 4;
@@ -428,11 +478,8 @@ class SudokuBoard{
                         }
                     }
                 }
-                
-                return true;
-
             }
-            return -1;
+            return true;
         }
 
         /// @brief Sequential attempt to fill in every empty grid in the board
@@ -449,6 +496,7 @@ class SudokuBoard{
                 if (canSupportinRow(row, i) && canSupportinCol(col, i) && canSupportinBlock(row, col, i)){
                     //test out that number and continue
                     tiles[row][col].setVal(i);
+                    //printf("trying %d at (%d, %d)\n", i, row, col);
                     if (solveBoardSequential() == 0){
                         //passed so end
                         return 0;
@@ -465,7 +513,7 @@ class SudokuBoard{
 
     /// @brief Randomly fills up a board
     /// @return returns 0 on success, 1 on failure to fill board
-    int randomBoardFill(){
+    int randomBoardSolve(){
         //test board
         int row = 0;
         int col = 0;
@@ -475,17 +523,17 @@ class SudokuBoard{
         
         //vector begins full and after random attempts removes elements until empty
         vector<int> nums(boardsize);
-        iota(nums.begin(), nums.end(), 1);//vector where ith element is i+1 (1,2,3...16)
+        iota(nums.begin(), nums.end(), 1);//vector where ith element is i+1 (1,2,3...boardsize)
         int n;
 
         while (nums.size() > 0){
-            n = (rand() % (nums.size())); //[0,9] exclusive index of nums array
+            n = (rand() % (nums.size())); //[0,boardsize] exclusive index of nums array
 
             // the tile can support the value in (row, col)
             if (canSupportinRow(row, nums[n]) && canSupportinCol(col, nums[n]) && canSupportinBlock(row, col, nums[n])){
                 //test out that number and continue
                 tiles[row][col].setVal(nums[n]);
-                if (randomBoardFill() == 0){
+                if (randomBoardSolve() == 0){
                     //filled board successfully
                     return 0;
                 }
@@ -511,21 +559,22 @@ SudokuBoard* generateSudokuBoard(string difficulty){
     srand(time(0));
     //chose the number of givens to include in the generated board
     unsigned int number_of_givens;
+    int total_squares = boardsize*boardsize;
     if (difficulty == "evil"){
-        number_of_givens = 3 + (rand() % static_cast<int>(6 - 3 + 1)); //[3,6] exclusive range
-    } else if (difficulty == "expert"){
-        number_of_givens = 7 + (rand() % static_cast<int>(14 - 7 + 1)); //[7,14] exclusive range
+        number_of_givens = 3 + (rand() % static_cast<int>(6 - 3 + 1)); //~[3,6] exclusive range
+    } else if (difficulty == "easy"){
+        number_of_givens = (total_squares-20) + (rand() % static_cast<int>((total_squares-10) - (total_squares-20) + 1)); //~[70,90] exclusive range
+    } else if (difficulty == "trivial"){
+        number_of_givens = (total_squares-10) + (rand() % static_cast<int>((total_squares-5) - (total_squares-10) + 1)); //~[70,90] exclusive range
     } else { 
-        number_of_givens = 20 + (rand() % static_cast<int>(30 - 20 + 1)); //[40,70] exclusive range
+        number_of_givens = (total_squares/4) + (rand() % static_cast<int>((total_squares/2) - (total_squares/4) + 1)); //~[20,30] exclusive range
     }
      
     printf("# of givens: %d\n", number_of_givens);
 
     //initialize a board to empty and add in random given numbers
-    //SudokuBoard* garbage = new SudokuBoard(test_board);
-    //return garbage;
     SudokuBoard* random_board = new SudokuBoard(empty_board);
-    random_board->randomBoardFill(); //complete the board randomly and then remove elements
+    random_board->randomBoardSolve(); //complete the board randomly and then remove elements
 
     //current coordinate position
     int x;
@@ -551,6 +600,7 @@ SudokuBoard* generateSudokuBoard(string difficulty){
 void runTestsSequential(int number_of_tests){
     for (int i = 0; i < number_of_tests; i++){
         SudokuBoard* b_seq = generateSudokuBoard("evil"); //random board
+        //SudokuBoard* b_seq = generateSudokuBoard("easy"); //random board
         //SudokuBoard* b_par = new SudokuBoard(b_seq); //copy to compare runtime between sequential and parallel
         printf("*******************************\nINITIAL SEQUENTIAL BOARD STATE\n*******************************\n\n");
         b_seq->printBoard();  
@@ -590,7 +640,30 @@ int main(int argc, char** argv){
     MPI_Comm_size(MPI_COMM_WORLD, &number_of_ranks); //the total number of processes in the world
 
     if( myrank == 0 ){
-        runTestsSequential(1);
+        runTestsSequential(1); 
+        
+        /*
+        Running 16x16 random board is super time consuming because of the time it takes to produce an evil board. 
+        Sometimes it takes forever and sometimes its instant, depending on the random numbers chosen i think.
+        I should probably exclude the board creation times when gathering real data.
+
+        Also, sequential filling of an empty board is much faster than random because it narrows down places numbers can go or something?
+
+        */
+        SudokuBoard* test = new SudokuBoard(empty_board);
+
+        printf("*******************************\nINITIAL SEQUENTIAL BOARD STATE\n*******************************\n\n");
+        test->printBoard(); 
+        
+        if (test->solveBoardSequential() == 0){
+            printf("\n*******************************\nBOARD IS SOLVED\n*******************************\n\n");
+        } else {
+            printf("board is incomplete or incorrect\n");
+        }
+
+        test->printBoard();  
+        printf("\n*******************************\nEND OF SEQUENTIAL SOLVER\n*******************************\n\n");
+       
     } 
     
     /*---------------------------------------------------*/
@@ -598,20 +671,8 @@ int main(int argc, char** argv){
     /*---------------------------------------------------*/
     MPI_Barrier(MPI_COMM_WORLD);
     /*---------------------------------------------------*/
-    
-<<<<<<< Updated upstream
-    
-    // Each process modifies a subset of the board array
-    /*int i, j;
-    for (i = myrank; i < boardsize; i += boardsize) {
-        for (j = 0; j < boardsize; j++) {
-           global_board_array[i][j] += myrank;
-        }
-    }*/
-=======
+#if 0
     if( myrank == 0 ){
->>>>>>> Stashed changes
-
         vector<bool> sendToArray(9, false);/*IS A 9*/
         //vector<char> sendToValues(9, "1");/*IS A 9*/
         bool sudokuNotComplete = true;
@@ -642,7 +703,7 @@ int main(int argc, char** argv){
             //send message to all ranks to break and terminate
         }
     }
-
+#endif
     MPI_Barrier(MPI_COMM_WORLD);
     MPI_Finalize(); //mpi causes false positives for memory leaks. 
     //DRMEMORY expects 427,000 bytes reachable and valgrind expects 71,000 bytes. Dont worry :)
