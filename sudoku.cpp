@@ -18,6 +18,17 @@ int EMPTY = 0;
 std::mutex global_mutex;
 
 //define some board examples
+string test2 = "\
+    345291867\
+    189647053\
+    267850109\
+    851934720\
+    926578431\
+    734162008\
+    493705602\
+    672489315\
+    018326974";
+
 string test_board = "\
     0fb04e19a050cd00\
     0d0600b290g000a0\
@@ -34,8 +45,7 @@ string test_board = "\
     3000e00a09000002\
     10690000g0700c0d\
     0000g00006803000\
-    00041b0000f3e00g\
-    ";
+    00041b0000f3e00g";
 
 #ifdef BOARDSIZE9
 string empty_board = "\
@@ -123,13 +133,11 @@ class SudokuBoard{
                                 num = 9+((int)item)-48-48; //letter a = 10, b = 11... etc
                             }
                             tiles[i][j].setVal(num);
-                            //printf("tile[%d][%d] possible values: ", i, j);
                             //printSet(*(tiles[i][j].getPosValues()));
 
                             //remove possible values from tiles affected by this number
-                            if (num != 0){ //we always read from empty board
+                            if (num != 0){ //only happens when reading a non-empty board//////////////////when we generate a sudoku board, it doesnt do this step because it starts from empty. something about that makes it not correctly assign all the pos_values
                                 removePosValue(num, i, j);
-                                printf("never happens\n");
                             }                            
                         }
                     }
@@ -142,9 +150,15 @@ class SudokuBoard{
         }
         
         /// @brief Gets the string representation of the board
-        /// @return boardtostring
+        /// @return s the string 
         string boardToString(){
-            return boardtostring;
+            string s = "";
+            for (int i = 0; i < boardsize; i++){
+                for (int j = 0; j < boardsize; j++){
+                    s += to_string(tiles[i][j].getVal());
+                }
+            }
+            return s;
         }
         
         /// @brief Attempts to retrieve a value of a particular tile in the grid
@@ -310,7 +324,9 @@ class SudokuBoard{
                     
                     //confirm board is complete
                     if (val == EMPTY){
-                        fprintf(stderr, "There exists a 0 on the board (incomplete)\n");
+                        //fprintf(stderr, "There exists a 0 on the board (incomplete)\n");
+                        printf("There exists a 0 on the board (incomplete)\n");
+                        
                         return 1;
                     }
 
@@ -454,7 +470,6 @@ class SudokuBoard{
         bool canSupportinCol(int col, int val){
             for (int i = 0; i < boardsize; i++)
                 if (tiles[i][col].getVal() == val)
-                    //printf("found match of %d at row: %d, col: %d\n", val, i, col);
                     return false;
             return true;
         }
@@ -572,7 +587,7 @@ class SudokuBoard{
                         set<int>* pos_values = tiles[x][y].getPosValues();
                         if (pos_values->size() == 1){
                             //////////////////MUST START MUTEX OR SEND MESSAGE OR SOMETHING HERE FOR PARALLEL
-                            tiles[x][y].setVal(*(pos_values->begin()));//set to the remaining element
+                            tiles[x][y].setVal(*(pos_values->begin()));//set to the leftover element
                             numChanges++;
                             //update pos_moves of all tiles affected by this change
                             removePosValue(*(pos_values->begin()), x, y);
@@ -589,7 +604,7 @@ class SudokuBoard{
 
                 }
             }
-            printf("Made %d changes\n", numChanges);
+            printf("Made %d elimination changes\n", numChanges);
             return (numChanges>0);
         }
         
@@ -606,7 +621,6 @@ class SudokuBoard{
             //elimination
             int changes;
             changes = eliminationRule(xstart, ystart, xend, yend);
-            printf("Made %d elim changes\n", changes);
 
             return checkBoard();
         }
@@ -738,21 +752,14 @@ void runTestsSequential(int number_of_tests){
         //SudokuBoard* b_par = new SudokuBoard(b_seq); //copy to compare runtime between sequential and parallel
         printf("*******************************\nINITIAL SEQUENTIAL BOARD STATE\n*******************************\n\n");
         b_seq->printBoard();
-    
-        /*printf("pos values of tiles[0][0]: ");
-        Tile firstTile = (b_seq->getTiles())[0][0];
-        printSet(*(firstTile.getPosValues()));
-        */
         
-        if (b_seq->SequentialHumanisticSolve() == 0){
+        if (b_seq->SequentialRecursiveBacktrackSolve()/*b_seq->SequentialHumanisticSolve()*/ == 0){
             printf("\n*******************************\nBOARD IS SOLVED\n*******************************\n\n");
         } else {
             printf("board is incomplete or incorrect\n");
         }
+        printString(b_seq->boardToString());
 
-        /*printf("pos values of tiles[0][0]: ");
-        printSet(*(b_seq->getTiles()[0][0].getPosValues()));
-        */
         b_seq->printBoard(); 
         
         printf("\n*******************************\nEND OF SEQUENTIAL SOLVER\n*******************************\n\n");
@@ -783,7 +790,7 @@ int main(int argc, char** argv){
     MPI_Comm_size(MPI_COMM_WORLD, &number_of_ranks); //the total number of processes in the world
 
     if( myrank == 0 ){
-        runTestsSequential(1); 
+        //runTestsSequential(1); 
         
         /*Running 16x16 random board is super time consuming because of the time it takes to produce an evil board. 
         Sometimes it takes forever and sometimes its instant, depending on the random numbers chosen i think.
@@ -793,20 +800,21 @@ int main(int argc, char** argv){
 
         */
 
-        /*SudokuBoard* test = new SudokuBoard(empty_board);
+        //SudokuBoard* test = new SudokuBoard(test2);
+        SudokuBoard* test = generateSudokuBoard("trivial");
+        printString(test->boardToString());
 
         printf("*******************************\nINITIAL SEQUENTIAL BOARD STATE\n*******************************\n\n");
         test->printBoard(); 
         
-        if (test->SequentialRecursiveBacktrackSolve() == 0){
+        if (test->SequentialHumanisticSolve() == 0){
             printf("\n*******************************\nBOARD IS SOLVED\n*******************************\n\n");
         } else {
             printf("board is incomplete or incorrect\n");
         }
-
+        
         test->printBoard();  
         printf("\n*******************************\nEND OF SEQUENTIAL SOLVER\n*******************************\n\n");
-       */
     } 
     
     /*---------------------------------------------------*/

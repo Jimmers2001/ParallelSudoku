@@ -20,6 +20,8 @@ TODO:
     
     make a copy constructor for boards
 
+    **DEBUG: when a board is imported, humanistic works fine. When randomly generating a board, it doesnt work... so somewhere the pos_values arent gettng set properly
+
     read from file instead of from string- should I even be doing this?
         id have to generate a puzzle, write to file, read from file... isnt that stupid?
         Just read from string, write to file

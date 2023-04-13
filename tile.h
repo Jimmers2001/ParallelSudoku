@@ -33,6 +33,14 @@ void printSet(set<int> v){
     printf("Set is of size %u\n\n", (unsigned int) v.size());
 }
 
+void printString(string v){
+    for (unsigned int i = 0; i < v.size(); i++) {
+        cout << v[i];
+    }
+    cout << endl;
+    printf("String is of size %u\n\n", (unsigned int) v.size());
+}
+
 /// @param val The value at that specific coordinate value
 /// @param pos_values The range of numbers that could be valid in this location
 class Tile{
