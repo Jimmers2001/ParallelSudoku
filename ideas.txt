@@ -20,10 +20,11 @@ TODO:
     
     make a copy constructor for boards
 
-    read from file instead of from string
+    read from file instead of from string- should I even be doing this?
+        id have to generate a puzzle, write to file, read from file... isnt that stupid?
+        Just read from string, write to file
 
     * Go through all the resources, summarize them with bulletpoint notes, see what we can use in our own project
-    * Make a 16x16 version 
 
 For parallel input
         Each block will read the corresponding section of the input string and write to the global board in parallel.
