@@ -866,21 +866,25 @@ int main(int argc, char** argv){
         bool keepLooping = true;
 
         while ( keepLooping ){
-            MPI_Status status;
-            MPI_Recv(message, sudoku_size + 3, MPI_CHAR , MPI_ANY_SOURCE, 0, MPI_COMM_WORLD, &status);
-
-            //printf("Message is: %s\n", message);
-
-            istringstream iss(message);
             char board[sudoku_size + 1], tile[1];
 
+            MPI_Status status;
+            MPI_Recv(message, sudoku_size + 3, MPI_CHAR , MPI_ANY_SOURCE, 0, MPI_COMM_WORLD, &status);
+            // ----- If the Message = "terminate" then we are completed and we can stop ------ //
+            if( false /* IS BOARD FILLED  ( Complete Board Function ) */){ keepLooping = false; continue; }
+
+            // Message is in the form: board + " " + tile_location
+            // So we split it to gert the data
+            istringstream iss(message);
             iss.getline(board, sudoku_size + 1 , ' ');
             iss.getline(tile, 2);
+            // --------------------------------------------------- //
 
+            // Start the code to do Recursive Back Tracking
             printf("Rank %d received a message from rank %d that is a Board: %s and a Tile: %s\n", myrank, status.MPI_SOURCE, board, tile);
-
+            
+            //This Will Be deleted later!!!! IMPORTANT
             if( true /* IS BOARD FILLED  ( Complete Board Function ) */){ keepLooping = false; }
-            //send message to all ranks to break and terminate
         }
     }
 //#endif
