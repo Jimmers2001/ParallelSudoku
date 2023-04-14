@@ -2,3 +2,4 @@
 *.out
 *.out
 sudoku.out
+.vscode/settings.json

@@ -8,6 +8,9 @@
 #include <numeric>
 #include <cmath>
 #include "tile.h"
+
+#include <cstring>
+#include <sstream>
 using namespace std;
 
 //GLOBAL DEFINES
@@ -779,6 +782,7 @@ void runTestsSequential(int number_of_tests){
 int main(int argc, char** argv){
     int myrank = 0;
     int number_of_ranks = 0;
+    int sudoku_size = 9*9;
 
     //int sudoku_size = boardsize*boardsize;
 
@@ -822,39 +826,66 @@ int main(int argc, char** argv){
     /*---------------------------------------------------*/
     MPI_Barrier(MPI_COMM_WORLD);
     /*---------------------------------------------------*/
-#if 0
+
+//#if 0
     if( myrank == 0 ){
-        vector<bool> sendToArray(9, false);/*IS A 9*/
-        //vector<char> sendToValues(9, "1");/*IS A 9*/
+        SudokuBoard* myBoard = generateSudokuBoard("trivial");
+        string boardString = myBoard->boardToString(); 
+
+        char board[boardString.length() + 2];
+        strcpy( board, boardString.c_str() );
+
+        vector<bool> sendToArray(9, true); // Array of if we are sennding a message to the a specific rank 0 is rank 1 etc etc.
+        vector<char> sendToValues(9, '1'); // Array of what location each rank is meant to check for
+
         bool sudokuNotComplete = true;
         while( sudokuNotComplete ){
             // STEP 1: generate spots to check {boardsize} at most 1 at least
             // STEP 2: flag vector with processes that match the block
             
-
             for (unsigned int i = 0; i < sendToArray.size(); i++){
-                bool shouldSend = sendToArray[i];
-                //char tile = sendToValues[i];
+                if( sendToArray[i] ){  
+                    char tile = sendToValues[i]; // Tile location 1-z as a char
+                    char message[sudoku_size + 3] = ""; //Message to be sent to rank i + 1
 
-                //  strcat(board, );
+                    // Concat the Stringto be 'Board' + ' ' + 'Location'
+                    // Note: Location is a single char 1-z
+                    strcat(message,  board );
+                    strcat(message, " ");
+                    strncat(message, &tile, 1);
+                    // --------------------------------------------------- //
 
-                if( shouldSend ){  MPI_Send(board, sudoku_size + 3, MPI_CHAR, i + 1, 0, MPI_COMM_WORLD); }
+                    MPI_Send(message, sudoku_size + 3, MPI_CHAR, i + 1, 0, MPI_COMM_WORLD);
+                } 
             }
             
             if( true /* IS BOARD FILLED ( Complete Board Function ) */ ){ sudokuNotComplete = false; }
         }
     } else {
+        char message[sudoku_size + 3] = "";
         bool keepLooping = true;
+
         while ( keepLooping ){
             MPI_Status status;
-            MPI_Recv(board, sudoku_size, MPI_CHAR , MPI_ANY_SOURCE, 0, MPI_COMM_WORLD, &status);
-            printf("Rank %d received a message from rank %d that is: %s\n", myrank, status.MPI_SOURCE, board);
+            MPI_Recv(message, sudoku_size + 3, MPI_CHAR , MPI_ANY_SOURCE, 0, MPI_COMM_WORLD, &status);
+
+            //printf("Message is: %s\n", message);
+
+            istringstream iss(message);
+            char board[sudoku_size + 1], tile[1];
+
+            iss.getline(board, sudoku_size + 1 , ' ');
+            iss.getline(tile, 2);
+
+            printf("Rank %d received a message from rank %d that is a Board: %s and a Tile: %s\n", myrank, status.MPI_SOURCE, board, tile);
 
             if( true /* IS BOARD FILLED  ( Complete Board Function ) */){ keepLooping = false; }
             //send message to all ranks to break and terminate
         }
     }
-#endif
+//#endif
+
+
     MPI_Barrier(MPI_COMM_WORLD);
     MPI_Finalize(); //mpi causes false positives for memory leaks. 
     //DRMEMORY expects 427,000 bytes reachable and valgrind expects 71,000 bytes. Dont worry :)
