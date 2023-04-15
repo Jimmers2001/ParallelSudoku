@@ -25,15 +25,15 @@ std::mutex global_mutex;
 
 //define some board examples
 string test2 = "\
-    345291867\
+    305201807\
     189647053\
-    267850109\
+    260050100\
     851934720\
-    926578431\
+    020570401\
     734162008\
     493705602\
     672489315\
-    018326974";
+    010326974";
 
 string test_board = "\
     0fb04e19a050cd00\
@@ -138,12 +138,7 @@ class SudokuBoard{
                             } else{ //it is a lowercase letter (no support for uppercase)
                                 num = 9+((int)item)-48-48; //letter a = 10, b = 11... etc
                             }
-                            setValue(i,j,num);
-
-                            //remove possible values from tiles affected by this number
-                            if (num != 0){ //only happens when reading a non-empty board//////////////////when we generate a sudoku board, it doesnt do this step because it starts from empty. something about that makes it not correctly assign all the pos_values
-                                removePosValue(num, i, j);
-                            }                            
+                            setValue(i,j,num);                          
                         }
                     }
                 }
@@ -188,17 +183,18 @@ class SudokuBoard{
         int setValue(int x, int y, int val){
             if (x >= width || x < 0 || y >= height || y < 0){
                 fprintf(stderr, "Cannot set value %d at invalid position: %d, %d\n", x, y, val);
-                return 1;
+                //return 1;
             }
+            int existing_val = getValue(x,y);
             if (val == 0){
                 //dont add 0s to possible values
-                if (getValue(x,y) != 0){
-                    printf("adding x: %d, y: %d, val: %d\n", x, y, val);
-                    addPosValue(getValue(x,y), x, y); //add a non-zero to pos val
-                } 
-                
+                if (existing_val != 0){
+                    //printf("adding x: %d, y: %d, val: %d\n", x, y, val);
+                    addPosValue(existing_val, x, y); //add a non-zero to pos val
+                }   
             } else{
-                printf("at x: %d, y: %d, removing possible val: %d\n", x, y, val);
+                if (existing_val != 0){throw;} //shouldnt happen
+                //printf("at x: %d, y: %d, removing possible val: %d\n", x, y, val);
                 removePosValue(val, x, y);
             }
 
@@ -290,59 +286,26 @@ class SudokuBoard{
             return false;
         }
 
-        /// @brief Checks the same block for duplicate value of current position
+        /// @brief Checks the given coordinate for its block and if there exists val already
         /// @param curx current x
         /// @param cury current y
         /// @returns true if there is a duplicate, false otherwise
-        bool isInBlock(int curx, int cury){
+        bool isInBlock(int curx, int cury, int val){
             int sq = sqrt(boardsize);
             int xstart = (curx / sq) * sq; //round down and then scale up
             int ystart = (cury / sq) * sq;
             int xend = xstart+sq;
             int yend = ystart+sq;
             for (int i = xstart; i < xend; i++){
-                for (int j = ystart; j < yend; j++){                    
-                    if (tiles[cury][curx].getVal() == tiles[j][i].getVal()){
-                        return false;
+                for (int j = ystart; j < yend; j++){ 
+                    if (cury == j && curx == i){continue;}                   
+                    else if (val == tiles[j][i].getVal()){
+                        printf("val %d is in block at index %d, %d\n",val, j, i);
+                        return true;
                     }
                 }
             }
-            /*
-            if (boardsize == 9){
-                //find which block the current position is in
-                int xstart = (curx / 3) * 3; //round down and then scale up
-                int ystart = (cury / 3) * 3;
-                int xend = xstart+3;
-                int yend = ystart+3;
-
-                for (int i = xstart; i < xend; i++){
-                    for (int j = ystart; j < yend; j++){
-                        if (cury == j && curx == i){continue;}
-                        
-                        if (tiles[cury][curx].getVal() == tiles[j][i].getVal()){
-                            return true;
-                        }
-                    }
-                }
-            }
-            else if (boardsize == 16){
-                //find which block the current position is in
-                int xstart = (curx / 4) * 4; //round down and then scale up
-                int ystart = (cury / 4) * 4;
-                int xend = xstart+4;
-                int yend = ystart+4;
-
-                for (int i = xstart; i < xend; i++){
-                    for (int j = ystart; j < yend; j++){
-                        if (cury == j && curx == i){continue;}
-                        
-                        if (tiles[cury][curx].getVal() == tiles[j][i].getVal()){
-                            return true;
-                        }
-                    }
-                }
-            }            
-            */
+            
            
            return false;
         }
@@ -359,8 +322,7 @@ class SudokuBoard{
                     //confirm board is complete
                     if (val == EMPTY){
                         //fprintf(stderr, "There exists a 0 on the board (incomplete)\n");
-                        printf("There exists a 0 on the board (incomplete)\n");
-                        
+                        printf("There exists a 0 at (%d, %d)\n", j, i);
                         return 1;
                     }
 
@@ -371,7 +333,8 @@ class SudokuBoard{
                     }
 
                     //check row, column, and block for duplicate values
-                    if (isInRow(i,j) || isInCol(i,j) || isInBlock(i,j)){
+                    if (isInRow(i,j) || isInCol(i,j) || isInBlock(i,j, tiles[j][i].getVal())){
+                        printf("failed one of these\n");
                         return 1;
                     }
                 }
@@ -384,8 +347,8 @@ class SudokuBoard{
         /// @param col the y coordinate of an empty tile
         /// @return returns true if the board has an empty tile, false otherwise
         bool findEmptyTile(int& row, int& col){
-            for (row = 0; row < boardsize; row++){
-                for (col = 0; col < boardsize; col++){
+            for (col = 0; col < boardsize; col++){
+                for (row = 0; row < boardsize; row++){
                     if (tiles[row][col].getVal() == EMPTY){
                         return true;
                     }
@@ -531,14 +494,29 @@ class SudokuBoard{
         void addPosValue(int val, int originalx, int originaly){
             //go through the row, col, and block containing coordinate (x,y) and remove val from all tiles' pos_values
             
+
+
+            //you cant always just add a possible value back 
+            /*
+            if you try a number on the far left of a row, and it fails, you add that number as a possible value to all other elements of the row
+            what if the far right which is also empty already has that number in the block, you dont want to add it as a possible value
+
+            */
+
             //row
             for (int x = 0; x < boardsize; x++){
-                tiles[originaly][x].addPosVal(val); //row
+                //if (!isInBlock(x, originaly, val)){
+                    tiles[originaly][x].addPosVal(val); 
+                //}
+                
             }
 
             //col
             for (int y = 0; y < boardsize; y++){
-                tiles[y][originalx].addPosVal(val);
+                //if (!isInBlock(originalx, y, val)){
+                    tiles[y][originalx].addPosVal(val);
+                //}
+                
             }
 
             //block
@@ -550,7 +528,10 @@ class SudokuBoard{
             int yend = ystart+sq;
             for (int x = xstart; x < xend; x++){
                 for (int y = ystart; y < yend; y++){
-                    tiles[y][x].addPosVal(val);
+                    //if (!isInBlock(x, y, val)){
+                        tiles[y][x].addPosVal(val);
+                    //}
+                    
                 }
             }
         }
@@ -560,13 +541,12 @@ class SudokuBoard{
             
             //row
             for (int x = 0; x < boardsize; x++){
-                if (x == originalx){continue;}
                 tiles[originaly][x].removePosVal(val);
             }
 
             //col
             for (int y = 0; y < boardsize; y++){
-                if (y == originaly){continue;}
+                //if (y == originaly){continue;}
                 tiles[y][originalx].removePosVal(val);
             }
 
@@ -579,12 +559,67 @@ class SudokuBoard{
             int yend = ystart+sq;
             for (int x = xstart; x < xend; x++){
                 for (int y = ystart; y < yend; y++){
-                    if (x == originalx && y == originaly){continue;}
                     tiles[y][x].removePosVal(val);
                 }
             }
         }
         
+
+        void recalculatePosValues(){
+            int y = 0;
+            int x = 0;
+
+            vector<vector<Tile>>& tiles = getTiles();
+            vector<pair<int, int>> empty_tile_coords; 
+            pair<int, int> target;
+            //bool tileExists = find(empty_tile_coords.begin(), empty_tile_coords.end(), target) != empty_tile_coords.end();
+
+            //fill in empty_tile_coords with all empty tiles, filling them in with a temporary 1
+            while (findEmptyTile(y, x)){
+                target = make_pair(y,x);
+                empty_tile_coords.push_back(target);
+                tiles[y][x].setVal(boardsize+1);
+                //tileExists = find(empty_tile_coords.begin(), empty_tile_coords.end(), target) != empty_tile_coords.end();
+            }
+            
+            //update the pos_values
+            for (pair<int, int> p : empty_tile_coords){
+                int originaly = p.first; 
+                int originalx = p.second;
+                set<int>* p_vs = tiles[originaly][originalx].getPosValues();
+
+                //row
+                for (int x = 0; x < boardsize; x++){
+                    p_vs->erase(tiles[originaly][x].getVal());
+                }
+
+                //col
+                for (int y = 0; y < boardsize; y++){
+                    p_vs->erase(tiles[y][originalx].getVal());
+                }
+
+                //block
+                int sq = sqrt(boardsize);
+                int xstart = (originalx / sq) * sq; //round down and then scale up
+                int ystart = (originaly / sq) * sq;
+                int xend = xstart+sq;
+                int yend = ystart+sq;
+                for (int x = xstart; x < xend; x++){
+                    for (int y = ystart; y < yend; y++){
+                        p_vs->erase(tiles[y][x].getVal());
+                    }
+                }
+            }
+
+            //set those coordinates back to 0
+            for (pair<int, int> p : empty_tile_coords){
+                int y = p.first;
+                int x = p.second;
+                tiles[y][x].setVal(EMPTY);
+            }
+            
+        }
+
         /// @brief Attempts the humanistic "elimination" rule as many times as possible
         /// @param xstart the x position of the top left of the block
         /// @param ystart the y position of the top left of the block
@@ -597,6 +632,7 @@ class SudokuBoard{
                 //what if we guess and then we use a rule, are we guaranteed a solution?
             //have functionality for each block running this
             int numChanges = 0;
+            int tryagain = true;
             for (int x = xstart; x < xend; x++){
                 for (int y = ystart; y < yend; y++){
                     if (tiles[y][x].getVal() == 0){
@@ -606,28 +642,25 @@ class SudokuBoard{
                             //////////////////MUST START MUTEX OR SEND MESSAGE OR SOMETHING HERE FOR PARALLEL
                             setValue(x,y,*(pos_values->begin()));
                             numChanges++;
-                            //update pos_moves of all tiles affected by this change
-                            removePosValue(*(pos_values->begin()), x, y);
-
-                            //THEY ARE EQUIV (successful pass by ref)
-                            if (*tiles[y][x].getPosValues() != *pos_values){
-                                printf("here\n");
-                                throw;
-                            }
 
                             //RESTART THE LOOP SINCE A CHANGE WAS MADE
                             x = 0;
                             y = 0;
-                        }
-                        else{
-                            printf("possible values at (%d, %d): ", x, y);
-                            printSet(*tiles[y][x].getPosValues());
+                            tryagain = true;
+                        } else{
+                            //printf("");
                         }
                     } 
-
+                    if (tryagain){
+                        tryagain = false;
+                        recalculatePosValues();
+                        x = 0;
+                        y = 0;
+                    }
                 }
+                recalculatePosValues();
             }
-            printf("Made %d elimination changes\n", numChanges);
+            //printf("Made %d elimination changes\n", numChanges);
             return (numChanges>0);
         }
         
@@ -699,7 +732,6 @@ class SudokuBoard{
             if (canSupportinRow(y, nums[n]) && canSupportinCol(x, nums[n]) && canSupportinBlock(y, x, nums[n])){
                 //test out that number and continue
                 setValue(x,y,nums[n]);
-                removePosValue(nums[n], y, x);
 
                 if (randomBoardSolve() == 0){
                     //filled board successfully
@@ -707,7 +739,6 @@ class SudokuBoard{
                 }
                 
                 //undo and try a different number
-                addPosValue(nums[n], x, y);
                 setValue(x,y,EMPTY);
             }
 
@@ -774,7 +805,6 @@ SudokuBoard* generateSudokuBoard(string difficulty){
         //if we havent assigned a value to that spot yet
         if (random_board->getValue(x,y) != 0){
             //must add possible values back because number is getting 0'd out
-            random_board->addPosValue(random_board->getValue(x,y), x, y);
 
             random_board->setValue(x,y,0);
             removals++;
@@ -787,20 +817,25 @@ SudokuBoard* generateSudokuBoard(string difficulty){
 /// @param number_of_tests The number of iterations to do 
 void runTestsSequential(int number_of_tests){
     for (int i = 0; i < number_of_tests; i++){
-        SudokuBoard* b_seq = generateSudokuBoard("trivial"); //random board
-        //SudokuBoard* b_par = new SudokuBoard(b_seq); //copy to compare runtime between sequential and parallel
-        //printf("*******************************\nINITIAL SEQUENTIAL BOARD STATE\n*******************************\n\n");
-        //b_seq->printBoard();
-        
-        if (b_seq->SequentialRecursiveBacktrackSolve()/*b_seq->SequentialHumanisticSolve()*/ == 0){
-            printf("\n*******************************\nBOARD IS SOLVED\n*******************************\n\n");
-        } else {
-            printf("board is incomplete or incorrect\n");
-            throw;
-        }
-        //printString(b_seq->boardToString());
+        SudokuBoard* board_recursive_sequential = generateSudokuBoard("easy"); //random board
+        SudokuBoard* board_humanistic = new SudokuBoard(board_recursive_sequential->boardToString()); //same random board
 
-        b_seq->printBoard(); 
+        //SudokuBoard* b_par = new SudokuBoard(b_seq); //copy to compare runtime between sequential and parallel
+        printf("*******************************\nINITIAL SEQUENTIAL BOARD STATE\n*******************************\n\n");
+        board_recursive_sequential->printBoard();
+        
+        if (board_recursive_sequential->SequentialRecursiveBacktrackSolve() == 0){
+            board_recursive_sequential->printBoard(); 
+            printf("\n********************************\nrecursive backtrack solved the board!\n********************************\n");
+        } else {
+            printf("recursive backtracking is incomplete or incorrect\n");
+        }
+
+        if (board_humanistic->SequentialHumanisticSolve() == 0){
+            printf("\n********************************\nsequential humanistic solved the board!\n********************************\n");
+        } else {
+            printf("humanistic is incomplete or incorrect\n");
+        }
         
         printf("\n*******************************\nEND OF SEQUENTIAL SOLVER\n*******************************\n\n");
         
@@ -808,7 +843,8 @@ void runTestsSequential(int number_of_tests){
 
         //solveBoardParallelDriver
         
-        delete b_seq;
+        delete board_recursive_sequential;
+        delete board_humanistic;
         //delete b_par;
     }
     
@@ -841,9 +877,12 @@ int main(int argc, char** argv){
 
         */
 
-        //SudokuBoard* test = new SudokuBoard(test2);
-        
-        SudokuBoard* test = generateSudokuBoard("trivial");
+        /*SudokuBoard* t = new SudokuBoard(test2);
+        t->SequentialHumanisticSolve();
+        t->printBoard();
+        if (t->checkBoard() != 0){throw;}*/
+        /*
+        SudokuBoard* test = generateSudokuBoard("easy");
         
         printf("*******************************\nINITIAL SEQUENTIAL BOARD STATE\n*******************************\n\n");
         test->printBoard(); 
@@ -856,7 +895,7 @@ int main(int argc, char** argv){
         
         test->printBoard();  
         printf("\n*******************************\nEND OF SEQUENTIAL SOLVER\n*******************************\n\n");
-        
+        */
     } 
     
     /*---------------------------------------------------*/
