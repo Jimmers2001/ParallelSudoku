@@ -17,6 +17,9 @@ using namespace std;
 //numbers 1-9 and then continuing with letters a-z for 10-36
 //boardsize defined in tile.h
 
+
+// JIMMOTHY TILES[Y][X]
+
 int EMPTY = 0;
 std::mutex global_mutex;
 
@@ -135,7 +138,7 @@ class SudokuBoard{
                             } else{ //it is a lowercase letter (no support for uppercase)
                                 num = 9+((int)item)-48-48; //letter a = 10, b = 11... etc
                             }
-                            tiles[i][j].setVal(num);
+                            tiles[j][i].setVal(num);
                             //printSet(*(tiles[i][j].getPosValues()));
 
                             //remove possible values from tiles affected by this number
@@ -158,7 +161,7 @@ class SudokuBoard{
             string s = "";
             for (int i = 0; i < boardsize; i++){
                 for (int j = 0; j < boardsize; j++){
-                    s += to_string(tiles[i][j].getVal());
+                    s += to_string(tiles[j][i].getVal());
                 }
             }
             return s;
@@ -173,7 +176,7 @@ class SudokuBoard{
                 fprintf(stderr, "Cannot get value at invalid position: %d, %d\n", x, y);
                 return 1;
             }
-            return tiles[x][y].getVal();;
+            return tiles[y][x].getVal();;
         }
 
         /// @brief Attempts to assign a value to a particular tile in the grid
@@ -186,7 +189,7 @@ class SudokuBoard{
                 fprintf(stderr, "Cannot set value %d at invalid position: %d, %d\n", x, y, val);
                 return 1;
             }
-            tiles[x][y].setVal(val);
+            tiles[y][x].setVal(val);
             return 0;
         }
 
@@ -202,14 +205,14 @@ class SudokuBoard{
 
                     for (int j = 0; j < boardsize; j++){
                         if( j%3 == 0 ) {
-                            if(tiles[j][i].getVal() == 0){
+                            if(tiles[i][j].getVal() == 0){
                                 printf("║    ");
-                            } else {  printf("║ %02d ", tiles[j][i].getVal()); }
+                            } else {  printf("║ %02d ", tiles[i][j].getVal()); }
                         } 
                         else { 
-                        if(tiles[j][i].getVal() == 0){
+                        if(tiles[i][j].getVal() == 0){
                                 printf("|    ");
-                            } else {  printf("| %02d ", tiles[j][i].getVal()); }
+                            } else {  printf("| %02d ", tiles[i][j].getVal()); }
                         }
                     }
                     printf("║\n");
@@ -455,64 +458,41 @@ class SudokuBoard{
             return checkBoard();
         }
 
-        /// @brief Checks if the given val can put placed anywhere in the row
-        /// @param row the row being checked
+        /// @brief Checks if the given val can put placed anywhere in the y
+        /// @param y the y being checked
         /// @param val the value being checked
         /// @return false if the value already exists, so it cannot be supported. otherwise true
-        bool canSupportinRow(int row, int val){
+        bool canSupportinRow(int y, int val){
             for (int i = 0; i < boardsize; i++)
-                if (tiles[row][i].getVal() == val)
+                if (tiles[y][i].getVal() == val)
                     return false;
             return true;
         }
 
-        /// @brief Checks if the given val can put placed anywhere in the column
-        /// @param col the column being checked
+        /// @brief Checks if the given val can put placed anywhere in the x
+        /// @param x the x being checked
         /// @param val the value being checked
         /// @return false if the value already exists, so it cannot be supported. otherwise true
-        bool canSupportinCol(int col, int val){
+        bool canSupportinCol(int x, int val){
             for (int i = 0; i < boardsize; i++)
-                if (tiles[i][col].getVal() == val)
+                if (tiles[i][x].getVal() == val)
                     return false;
             return true;
         }
 
-        ///THIS IS HARDCODED TO 9X9 FOR NOW///////////////////////////////////////////
         /// @brief Checks the same block for existence of val
-        /// @param col current x
-        /// @param row current y
+        /// @param originalx current x
+        /// @param originaly current y
         /// @returns true if can support because of no duplicate, false otherwise
-        bool canSupportinBlock(int row, int col, int val){
-            //3x3 blocks
-            if (boardsize == 9){
-                //find which block to check in
-                int xstart = (col / 3) * 3; //round down and then scale up
-                int ystart = (row / 3) * 3;
-                int xend = xstart+3;
-                int yend = ystart+3;
-
-                for (int i = xstart; i < xend; i++){
-                    for (int j = ystart; j < yend; j++){                    
-                        if (val == tiles[j][i].getVal()){
-                            return false;
-                        }
-                    }
-                }
-            }
-            //4x4 blocks
-            else if (boardsize == 16){
-                //find which block to check in
-                int xstart = (col / 4) * 4; //round down and then scale up
-                int ystart = (row / 4) * 4;
-                int xend = xstart+4;
-                int yend = ystart+4;
-
-                for (int i = xstart; i < xend; i++){
-                    for (int j = ystart; j < yend; j++){ 
-                        if (val == tiles[j][i].getVal()){
-                            return false;
-                        }
-                    }
+        bool canSupportinBlock(int originaly, int originalx, int val){ 
+            int sq = sqrt(boardsize);
+            int xstart = (originalx / sq) * sq; //round down and then scale up
+            int ystart = (originaly / sq) * sq;
+            int xend = xstart+sq;
+            int yend = ystart+sq;
+            for (int x = xstart; x < xend; x++){
+                for (int y = ystart; y < yend; y++){
+                    tiles[y][x].addPosVal(val); // this is right
                 }
             }
             return true;
@@ -523,12 +503,12 @@ class SudokuBoard{
             
             //row
             for (int x = 0; x < boardsize; x++){
-                tiles[x][originaly].addPosVal(val);
+                tiles[originaly][x].addPosVal(val); //row
             }
 
             //col
             for (int y = 0; y < boardsize; y++){
-                tiles[originalx][y].addPosVal(val);
+                tiles[y][originalx].addPosVal(val);
             }
 
             //block
@@ -540,7 +520,7 @@ class SudokuBoard{
             int yend = ystart+sq;
             for (int x = xstart; x < xend; x++){
                 for (int y = ystart; y < yend; y++){
-                    tiles[x][y].addPosVal(val);
+                    tiles[y][x].addPosVal(val);
                 }
             }
         }
@@ -550,12 +530,12 @@ class SudokuBoard{
             
             //row
             for (int x = 0; x < boardsize; x++){
-                tiles[x][originaly].removePosVal(val);
+                tiles[originaly][x].removePosVal(val);
             }
 
             //col
             for (int y = 0; y < boardsize; y++){
-                tiles[originalx][y].removePosVal(val);
+                tiles[y][originalx].removePosVal(val);
             }
 
             //block
@@ -567,7 +547,7 @@ class SudokuBoard{
             int yend = ystart+sq;
             for (int x = xstart; x < xend; x++){
                 for (int y = ystart; y < yend; y++){
-                    tiles[x][y].removePosVal(val);
+                    tiles[y][x].removePosVal(val);
                 }
             }
         }
@@ -586,11 +566,11 @@ class SudokuBoard{
             int numChanges = 0;
             for (int x = xstart; x < xend; x++){
                 for (int y = ystart; y < yend; y++){
-                    if (tiles[x][y].getVal() == 0){
-                        set<int>* pos_values = tiles[x][y].getPosValues();
+                    if (tiles[y][x].getVal() == 0){
+                        set<int>* pos_values = tiles[y][x].getPosValues();
                         if (pos_values->size() == 1){
                             //////////////////MUST START MUTEX OR SEND MESSAGE OR SOMETHING HERE FOR PARALLEL
-                            tiles[x][y].setVal(*(pos_values->begin()));//set to the leftover element
+                            tiles[y][x].setVal(*(pos_values->begin()));//set to the leftover element
                             numChanges++;
                             //update pos_moves of all tiles affected by this change
                             removePosValue(*(pos_values->begin()), x, y);
@@ -601,7 +581,7 @@ class SudokuBoard{
                         }
                         else{
                             printf("possible values at (%d, %d): ", x, y);
-                            printSet(*tiles[x][y].getPosValues());
+                            printSet(*tiles[y][x].getPosValues());
                         }
                     } 
 
@@ -794,7 +774,7 @@ int main(int argc, char** argv){
     MPI_Comm_size(MPI_COMM_WORLD, &number_of_ranks); //the total number of processes in the world
 
     if( myrank == 0 ){
-        //runTestsSequential(1); 
+        runTestsSequential(1); 
         
         /*Running 16x16 random board is super time consuming because of the time it takes to produce an evil board. 
         Sometimes it takes forever and sometimes its instant, depending on the random numbers chosen i think.
@@ -805,8 +785,13 @@ int main(int argc, char** argv){
         */
 
         //SudokuBoard* test = new SudokuBoard(test2);
-        SudokuBoard* test = generateSudokuBoard("trivial");
-        printString(test->boardToString());
+        //SudokuBoard* test = generateSudokuBoard("trivial");
+        SudokuBoard* test = new SudokuBoard(empty_board);
+        test->setValue(1,0,9);
+        test->setValue(0,1,4);
+        test->printBoard();
+        
+        /*printString(test->boardToString());
 
         printf("*******************************\nINITIAL SEQUENTIAL BOARD STATE\n*******************************\n\n");
         test->printBoard(); 
@@ -819,6 +804,8 @@ int main(int argc, char** argv){
         
         test->printBoard();  
         printf("\n*******************************\nEND OF SEQUENTIAL SOLVER\n*******************************\n\n");
+        */
+    
     } 
     
     /*---------------------------------------------------*/
@@ -827,7 +814,7 @@ int main(int argc, char** argv){
     MPI_Barrier(MPI_COMM_WORLD);
     /*---------------------------------------------------*/
 
-//#if 0
+#if 0
     if( myrank == 0 ){
         SudokuBoard* myBoard = generateSudokuBoard("trivial");
         string boardString = myBoard->boardToString(); 
@@ -887,7 +874,7 @@ int main(int argc, char** argv){
             if( true /* IS BOARD FILLED  ( Complete Board Function ) */){ keepLooping = false; }
         }
     }
-//#endif
+#endif
 
 
     MPI_Barrier(MPI_COMM_WORLD);

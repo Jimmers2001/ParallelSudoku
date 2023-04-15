@@ -98,9 +98,9 @@ class Tile{
         /// @param val 
         /// @return 0 on successful addition
         int addPosVal(int val){
-            if (find(pos_values->begin(), pos_values->end(), val) != pos_values->end()) {
+            //if (find(pos_values->begin(), pos_values->end(), val) != pos_values->end()) {
                 //printf("already has %d\n", val);
-            }
+            //}
 
             pos_values->insert(val);
             return 0;
