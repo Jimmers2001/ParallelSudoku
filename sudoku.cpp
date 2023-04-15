@@ -100,9 +100,9 @@ class SudokuBoard{
         SudokuBoard(string input){
             input.erase(std::remove_if(input.begin(), input.end(), ::isspace),input.end());
             boardtostring = input;
-            if (input.size() < (unsigned int) boardsize*boardsize){
-                fprintf(stderr, "Too small of a board input string. size: %u, boardsize: %d\n", (unsigned int) input.size(), boardsize);
-                //throw;
+            if (input.size() != (unsigned int) boardsize*boardsize){
+                fprintf(stderr, "Bad board input string. size: %u, boardsize: %d\n", (unsigned int) input.size(), boardsize);
+                throw;
             }
             else{
                 //initialize boardsize x boardsize board to all 0s
@@ -173,7 +173,7 @@ class SudokuBoard{
         /// @param y the vertical y position 
         /// @return the value
         int getValue(int x, int y){
-            if (x > width || x < 0 || y > height || y < 0){
+            if (x >= width || x < 0 || y >= height || y < 0){
                 fprintf(stderr, "Cannot get value at invalid position: %d, %d\n", x, y);
                 return 1;
             }
@@ -186,14 +186,20 @@ class SudokuBoard{
         /// @param val the value being used for assignment
         /// @return 0 on success, positive number on failure
         int setValue(int x, int y, int val){
-            if (x > width || x < 0 || y > height || y < 0){
+            if (x >= width || x < 0 || y >= height || y < 0){
                 fprintf(stderr, "Cannot set value %d at invalid position: %d, %d\n", x, y, val);
                 return 1;
             }
             if (val == 0){
-                //addPosValue(getValue(x,y), x, y);
+                //dont add 0s to possible values
+                if (getValue(x,y) != 0){
+                    printf("adding x: %d, y: %d, val: %d\n", x, y, val);
+                    addPosValue(getValue(x,y), x, y); //add a non-zero to pos val
+                } 
+                
             } else{
-                //removePosValue(val, x, y);
+                printf("at x: %d, y: %d, removing possible val: %d\n", x, y, val);
+                removePosValue(val, x, y);
             }
 
             tiles[y][x].setVal(val);
@@ -289,6 +295,19 @@ class SudokuBoard{
         /// @param cury current y
         /// @returns true if there is a duplicate, false otherwise
         bool isInBlock(int curx, int cury){
+            int sq = sqrt(boardsize);
+            int xstart = (curx / sq) * sq; //round down and then scale up
+            int ystart = (cury / sq) * sq;
+            int xend = xstart+sq;
+            int yend = ystart+sq;
+            for (int i = xstart; i < xend; i++){
+                for (int j = ystart; j < yend; j++){                    
+                    if (tiles[cury][curx].getVal() == tiles[j][i].getVal()){
+                        return false;
+                    }
+                }
+            }
+            /*
             if (boardsize == 9){
                 //find which block the current position is in
                 int xstart = (curx / 3) * 3; //round down and then scale up
@@ -323,7 +342,9 @@ class SudokuBoard{
                     }
                 }
             }            
-            return false;
+            */
+           
+           return false;
         }
 
         
@@ -497,9 +518,11 @@ class SudokuBoard{
             int ystart = (originaly / sq) * sq;
             int xend = xstart+sq;
             int yend = ystart+sq;
-            for (int x = xstart; x < xend; x++){
-                for (int y = ystart; y < yend; y++){
-                    addPosValue(val, x, y);
+            for (int i = xstart; i < xend; i++){
+                for (int j = ystart; j < yend; j++){                    
+                    if (val == tiles[j][i].getVal()){
+                        return false;
+                    }
                 }
             }
             return true;
@@ -537,11 +560,13 @@ class SudokuBoard{
             
             //row
             for (int x = 0; x < boardsize; x++){
+                if (x == originalx){continue;}
                 tiles[originaly][x].removePosVal(val);
             }
 
             //col
             for (int y = 0; y < boardsize; y++){
+                if (y == originaly){continue;}
                 tiles[y][originalx].removePosVal(val);
             }
 
@@ -554,6 +579,7 @@ class SudokuBoard{
             int yend = ystart+sq;
             for (int x = xstart; x < xend; x++){
                 for (int y = ystart; y < yend; y++){
+                    if (x == originalx && y == originaly){continue;}
                     tiles[y][x].removePosVal(val);
                 }
             }
@@ -584,13 +610,14 @@ class SudokuBoard{
                             removePosValue(*(pos_values->begin()), x, y);
 
                             //THEY ARE EQUIV (successful pass by ref)
-                            if (tiles[y][x].getPosValues() != pos_values){
+                            if (*tiles[y][x].getPosValues() != *pos_values){
+                                printf("here\n");
                                 throw;
                             }
 
                             //RESTART THE LOOP SINCE A CHANGE WAS MADE
-                            x = xstart;
-                            y = ystart;
+                            x = 0;
+                            y = 0;
                         }
                         else{
                             printf("possible values at (%d, %d): ", x, y);
@@ -707,7 +734,7 @@ SudokuBoard* generateSudokuBoard(string difficulty){
     } else if (difficulty == "easy"){
         number_of_givens = (total_squares-20) + (rand() % static_cast<int>((total_squares-10) - (total_squares-20) + 1)); //~[70,90] exclusive range
     } else if (difficulty == "trivial"){
-        number_of_givens = (total_squares-10) + (rand() % static_cast<int>((total_squares-5) - (total_squares-10) + 1)); //~[70,90] exclusive range
+        number_of_givens = (total_squares-5) + (rand() % static_cast<int>((total_squares-2) - (total_squares-5) + 1)); //~[70,90] exclusive range
     } else { 
         number_of_givens = (total_squares/4) + (rand() % static_cast<int>((total_squares/2) - (total_squares/4) + 1)); //~[20,30] exclusive range
     }
@@ -716,6 +743,8 @@ SudokuBoard* generateSudokuBoard(string difficulty){
 
     //initialize a board to empty and add in random given numbers
     SudokuBoard* random_board = new SudokuBoard(empty_board);
+
+
     //confirm all pos_values are empty
     for (int i = 0; i < boardsize; i++){
         for (int j = 0; j < boardsize; j++){
@@ -723,10 +752,13 @@ SudokuBoard* generateSudokuBoard(string difficulty){
 
             Tile tmp = (vector_ref)[j][i];
             if ((*(tmp.getPosValues())).size() != (unsigned int) boardsize){
+                printSet((*(tmp.getPosValues())));
+                printf("there\n");
                 throw;
             }
         }
     }
+        //ALL GOOD TIL HERE
     random_board->randomBoardSolve(); //complete the board randomly and then remove elements
 
     //current coordinate position

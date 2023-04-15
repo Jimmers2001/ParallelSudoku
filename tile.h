@@ -92,7 +92,7 @@ class Tile{
         int removePosVal(int val){
             for (set<int>::iterator itr = pos_values->begin(); itr != pos_values->end(); itr++){
                 if (*itr == val){
-                    pos_values->erase(*itr);
+                    pos_values->erase(itr);
                     return 0;
                 }
             }
