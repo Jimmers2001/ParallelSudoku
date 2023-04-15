@@ -138,8 +138,7 @@ class SudokuBoard{
                             } else{ //it is a lowercase letter (no support for uppercase)
                                 num = 9+((int)item)-48-48; //letter a = 10, b = 11... etc
                             }
-                            tiles[j][i].setVal(num);
-                            //printSet(*(tiles[i][j].getPosValues()));
+                            setValue(i,j,num);
 
                             //remove possible values from tiles affected by this number
                             if (num != 0){ //only happens when reading a non-empty board//////////////////when we generate a sudoku board, it doesnt do this step because it starts from empty. something about that makes it not correctly assign all the pos_values
@@ -151,6 +150,8 @@ class SudokuBoard{
             }
         }
 #if 1
+        /// @brief MAKE SURE TO INCLUDE THE & WHEN CALLING THIS FUNCTION OR IT WILL COPY THE REFERENCE, NOT THE ORIGINAL DATA
+        /// @return the reference to tiles
         vector<vector<Tile>>& getTiles(){
             return tiles;
         }
@@ -189,6 +190,12 @@ class SudokuBoard{
                 fprintf(stderr, "Cannot set value %d at invalid position: %d, %d\n", x, y, val);
                 return 1;
             }
+            if (val == 0){
+                //addPosValue(getValue(x,y), x, y);
+            } else{
+                //removePosValue(val, x, y);
+            }
+
             tiles[y][x].setVal(val);
             return 0;
         }
@@ -415,14 +422,14 @@ class SudokuBoard{
                 // the tile can support the value in (row, col)
                 if (canSupportinRow(row, i) && canSupportinCol(col, i) && canSupportinBlock(row, col, i)){
                     //test out that number and continue
-                    tiles[row][col].setVal(i);
+                    setValue(col,row,i);
                     if (SequentialRecursiveBacktrackSolve() == 0){
                         //passed so end
                         return 0;
                     }
                     
                     //undo and try a different number
-                    tiles[row][col].setVal(EMPTY);
+                    setValue(col,row,EMPTY);
                 }
             }*/
             
@@ -492,7 +499,7 @@ class SudokuBoard{
             int yend = ystart+sq;
             for (int x = xstart; x < xend; x++){
                 for (int y = ystart; y < yend; y++){
-                    tiles[y][x].addPosVal(val); // this is right
+                    addPosValue(val, x, y);
                 }
             }
             return true;
@@ -567,13 +574,19 @@ class SudokuBoard{
             for (int x = xstart; x < xend; x++){
                 for (int y = ystart; y < yend; y++){
                     if (tiles[y][x].getVal() == 0){
+
                         set<int>* pos_values = tiles[y][x].getPosValues();
                         if (pos_values->size() == 1){
                             //////////////////MUST START MUTEX OR SEND MESSAGE OR SOMETHING HERE FOR PARALLEL
-                            tiles[y][x].setVal(*(pos_values->begin()));//set to the leftover element
+                            setValue(x,y,*(pos_values->begin()));
                             numChanges++;
                             //update pos_moves of all tiles affected by this change
                             removePosValue(*(pos_values->begin()), x, y);
+
+                            //THEY ARE EQUIV (successful pass by ref)
+                            if (tiles[y][x].getPosValues() != pos_values){
+                                throw;
+                            }
 
                             //RESTART THE LOOP SINCE A CHANGE WAS MADE
                             x = xstart;
@@ -621,7 +634,7 @@ class SudokuBoard{
                 // the tile can support the value in (row, col)
                 if (canSupportinRow(row, i) && canSupportinCol(col, i) && canSupportinBlock(row, col, i)){
                     //test out that number and continue
-                    tiles[row][col].setVal(i);
+                    setValue(col, row, i);
 
                     if (SequentialRecursiveBacktrackSolve() == 0){
                         //passed so end
@@ -629,7 +642,7 @@ class SudokuBoard{
                     }
                     
                     //undo and try a different number
-                    tiles[row][col].setVal(EMPTY);
+                    setValue(col, row, EMPTY);
                 }
             }
             
@@ -641,9 +654,9 @@ class SudokuBoard{
     /// @return 0 on success, 1 on inability to solve
     int randomBoardSolve(){
         //test board
-        int row = 0;
-        int col = 0;
-        if (!findEmptyTile(row, col)){
+        int y = 0;
+        int x = 0;
+        if (!findEmptyTile(y, x)){
             return 0;
         }
         
@@ -655,11 +668,11 @@ class SudokuBoard{
         while (nums.size() > 0){
             n = (rand() % (nums.size())); //[0,boardsize] exclusive index of nums array
 
-            // the tile can support the value in (row, col)
-            if (canSupportinRow(row, nums[n]) && canSupportinCol(col, nums[n]) && canSupportinBlock(row, col, nums[n])){
+            // the tile can support the value in (y, x)
+            if (canSupportinRow(y, nums[n]) && canSupportinCol(x, nums[n]) && canSupportinBlock(y, x, nums[n])){
                 //test out that number and continue
-                tiles[row][col].setVal(nums[n]);
-                removePosValue(nums[n], row, col);
+                setValue(x,y,nums[n]);
+                removePosValue(nums[n], y, x);
 
                 if (randomBoardSolve() == 0){
                     //filled board successfully
@@ -667,8 +680,8 @@ class SudokuBoard{
                 }
                 
                 //undo and try a different number
-                addPosValue(nums[n], row, col);
-                tiles[row][col].setVal(EMPTY);
+                addPosValue(nums[n], x, y);
+                setValue(x,y,EMPTY);
             }
 
             //already guessed n so dont randomly guess again
@@ -703,6 +716,17 @@ SudokuBoard* generateSudokuBoard(string difficulty){
 
     //initialize a board to empty and add in random given numbers
     SudokuBoard* random_board = new SudokuBoard(empty_board);
+    //confirm all pos_values are empty
+    for (int i = 0; i < boardsize; i++){
+        for (int j = 0; j < boardsize; j++){
+            vector<vector<Tile>>& vector_ref = random_board->getTiles();
+
+            Tile tmp = (vector_ref)[j][i];
+            if ((*(tmp.getPosValues())).size() != (unsigned int) boardsize){
+                throw;
+            }
+        }
+    }
     random_board->randomBoardSolve(); //complete the board randomly and then remove elements
 
     //current coordinate position
@@ -733,15 +757,16 @@ void runTestsSequential(int number_of_tests){
     for (int i = 0; i < number_of_tests; i++){
         SudokuBoard* b_seq = generateSudokuBoard("trivial"); //random board
         //SudokuBoard* b_par = new SudokuBoard(b_seq); //copy to compare runtime between sequential and parallel
-        printf("*******************************\nINITIAL SEQUENTIAL BOARD STATE\n*******************************\n\n");
-        b_seq->printBoard();
+        //printf("*******************************\nINITIAL SEQUENTIAL BOARD STATE\n*******************************\n\n");
+        //b_seq->printBoard();
         
         if (b_seq->SequentialRecursiveBacktrackSolve()/*b_seq->SequentialHumanisticSolve()*/ == 0){
             printf("\n*******************************\nBOARD IS SOLVED\n*******************************\n\n");
         } else {
             printf("board is incomplete or incorrect\n");
+            throw;
         }
-        printString(b_seq->boardToString());
+        //printString(b_seq->boardToString());
 
         b_seq->printBoard(); 
         
@@ -785,14 +810,9 @@ int main(int argc, char** argv){
         */
 
         //SudokuBoard* test = new SudokuBoard(test2);
-        //SudokuBoard* test = generateSudokuBoard("trivial");
-        SudokuBoard* test = new SudokuBoard(empty_board);
-        test->setValue(1,0,9);
-        test->setValue(0,1,4);
-        test->printBoard();
         
-        /*printString(test->boardToString());
-
+        SudokuBoard* test = generateSudokuBoard("trivial");
+        
         printf("*******************************\nINITIAL SEQUENTIAL BOARD STATE\n*******************************\n\n");
         test->printBoard(); 
         
@@ -804,8 +824,7 @@ int main(int argc, char** argv){
         
         test->printBoard();  
         printf("\n*******************************\nEND OF SEQUENTIAL SOLVER\n*******************************\n\n");
-        */
-    
+        
     } 
     
     /*---------------------------------------------------*/

@@ -64,6 +64,12 @@ class Tile{
         /// @param v value input
         /// @return 0 on success
         int setVal(int v){
+            if (v == 0){
+
+            }
+            else{
+
+            }
             val = v;
             return 0;
         }
