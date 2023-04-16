@@ -855,9 +855,7 @@ void runTestsSequential(int number_of_tests){
 int main(int argc, char** argv){
     int myrank = 0;
     int number_of_ranks = 0;
-    int sudoku_size = 9*9;
-
-    //int sudoku_size = boardsize*boardsize;
+    int sudoku_size = boardsize*boardsize;
 
     //character that represents the "{board} {#tile to solve}" which is space separated and has null terminating character
     //char board[sudoku_size] = "Hello";
@@ -912,7 +910,7 @@ int main(int argc, char** argv){
         char board[boardString.length() + 2];
         strcpy( board, boardString.c_str() );
 
-        vector<bool> sendToArray(9, true); // Array of if we are sennding a message to the a specific rank 0 is rank 1 etc etc.
+        vector<bool> sendToArray(9, true); // Array of if we are sending a message to the a specific rank 0 is rank 1 etc etc.
         vector<char> sendToValues(9, '1'); // Array of what location each rank is meant to check for
 
         bool sudokuNotComplete = true;

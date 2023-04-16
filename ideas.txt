@@ -89,17 +89,3 @@ https://alitarhini.wordpress.com/2012/02/27/parallel-sudoku-solver-algorithm/
     b2->printBoard();    
     delete b2;
     */
-    //////////////////////////////////////////////////////////////////////////////////
-    /*SudokuBoard* b3 = new SudokuBoard(evil_board);
-    printf("***********************\nINITIAL BOARD STATE\n***********************\n");
-    b3->printBoard();
-    if (b3->solveBoardSequential() == 0){
-        printf("\n***********************\nBOARD IS SOLVED\n***********************\n");
-    }
-    else{
-        printf("board is incomplete or incorrect\n");
-    }
-
-    b3->printBoard();    
-    delete b3;*/
-    //////////////////////////////////////////////////////////////////////////////////
