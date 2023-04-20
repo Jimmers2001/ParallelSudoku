@@ -301,7 +301,7 @@ class SudokuBoard{
                 for (int j = ystart; j < yend; j++){ 
                     if (cury == j && curx == i){continue;}                   
                     else if (val == tiles[j][i].getVal()){
-                        printf("val %d is in block at index %d, %d\n",val, j, i);
+                        //printf("val %d is in block at index %d, %d\n",val, j, i);
                         return true;
                     }
                 }
@@ -507,17 +507,17 @@ class SudokuBoard{
 
             //row
             for (int x = 0; x < boardsize; x++){
-                //if (!isInBlock(x, originaly, val)){
+                if (!isInBlock(x, originaly, val)){
                     tiles[originaly][x].addPosVal(val); 
-                //}
+                }
                 
             }
 
             //col
             for (int y = 0; y < boardsize; y++){
-                //if (!isInBlock(originalx, y, val)){
+                if (!isInBlock(originalx, y, val)){
                     tiles[y][originalx].addPosVal(val);
-                //}
+                }
                 
             }
 
@@ -530,9 +530,9 @@ class SudokuBoard{
             int yend = ystart+sq;
             for (int x = xstart; x < xend; x++){
                 for (int y = ystart; y < yend; y++){
-                    //if (!isInBlock(x, y, val)){
+                    if (!isInBlock(x, y, val)){
                         tiles[y][x].addPosVal(val);
-                    //}
+                    }
                     
                 }
             }
