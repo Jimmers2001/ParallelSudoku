@@ -193,7 +193,8 @@ class SudokuBoard{
                     addPosValue(existing_val, x, y); //add a non-zero to pos val
                 }   
             } else{
-                if (existing_val != 0){throw;} //shouldnt happen
+                if (existing_val != 0){throw;} //confirms you never change a number into another number. 
+                //You always empty the tile and then add a new number in two separate states
                 //printf("at x: %d, y: %d, removing possible val: %d\n", x, y, val);
                 removePosValue(val, x, y);
             }
@@ -323,6 +324,7 @@ class SudokuBoard{
                     if (val == EMPTY){
                         //fprintf(stderr, "There exists a 0 on the board (incomplete)\n");
                         printf("There exists a 0 at (%d, %d)\n", j, i);
+                        printBoard();
                         return 1;
                     }
 
@@ -564,62 +566,6 @@ class SudokuBoard{
             }
         }
         
-
-        void recalculatePosValues(){
-            int y = 0;
-            int x = 0;
-
-            vector<vector<Tile>>& tiles = getTiles();
-            vector<pair<int, int>> empty_tile_coords; 
-            pair<int, int> target;
-            //bool tileExists = find(empty_tile_coords.begin(), empty_tile_coords.end(), target) != empty_tile_coords.end();
-
-            //fill in empty_tile_coords with all empty tiles, filling them in with a temporary 1
-            while (findEmptyTile(y, x)){
-                target = make_pair(y,x);
-                empty_tile_coords.push_back(target);
-                tiles[y][x].setVal(boardsize+1);
-                //tileExists = find(empty_tile_coords.begin(), empty_tile_coords.end(), target) != empty_tile_coords.end();
-            }
-            
-            //update the pos_values
-            for (pair<int, int> p : empty_tile_coords){
-                int originaly = p.first; 
-                int originalx = p.second;
-                set<int>* p_vs = tiles[originaly][originalx].getPosValues();
-
-                //row
-                for (int x = 0; x < boardsize; x++){
-                    p_vs->erase(tiles[originaly][x].getVal());
-                }
-
-                //col
-                for (int y = 0; y < boardsize; y++){
-                    p_vs->erase(tiles[y][originalx].getVal());
-                }
-
-                //block
-                int sq = sqrt(boardsize);
-                int xstart = (originalx / sq) * sq; //round down and then scale up
-                int ystart = (originaly / sq) * sq;
-                int xend = xstart+sq;
-                int yend = ystart+sq;
-                for (int x = xstart; x < xend; x++){
-                    for (int y = ystart; y < yend; y++){
-                        p_vs->erase(tiles[y][x].getVal());
-                    }
-                }
-            }
-
-            //set those coordinates back to 0
-            for (pair<int, int> p : empty_tile_coords){
-                int y = p.first;
-                int x = p.second;
-                tiles[y][x].setVal(EMPTY);
-            }
-            
-        }
-
         /// @brief Attempts the humanistic "elimination" rule as many times as possible
         /// @param xstart the x position of the top left of the block
         /// @param ystart the y position of the top left of the block
@@ -636,7 +582,6 @@ class SudokuBoard{
             for (int x = xstart; x < xend; x++){
                 for (int y = ystart; y < yend; y++){
                     if (tiles[y][x].getVal() == 0){
-
                         set<int>* pos_values = tiles[y][x].getPosValues();
                         if (pos_values->size() == 1){
                             //////////////////MUST START MUTEX OR SEND MESSAGE OR SOMETHING HERE FOR PARALLEL
@@ -644,21 +589,12 @@ class SudokuBoard{
                             numChanges++;
 
                             //RESTART THE LOOP SINCE A CHANGE WAS MADE
-                            x = 0;
-                            y = 0;
+                            x = xstart;
+                            y = ystart-1;
                             tryagain = true;
-                        } else{
-                            //printf("");
                         }
                     } 
-                    if (tryagain){
-                        tryagain = false;
-                        recalculatePosValues();
-                        x = 0;
-                        y = 0;
-                    }
                 }
-                recalculatePosValues();
             }
             //printf("Made %d elimination changes\n", numChanges);
             return (numChanges>0);
@@ -816,6 +752,8 @@ SudokuBoard* generateSudokuBoard(string difficulty){
 /// @brief Runs all solvers potentially many times
 /// @param number_of_tests The number of iterations to do 
 void runTestsSequential(int number_of_tests){
+    int seq_passes = 0;
+    int human_passes = 0;
     for (int i = 0; i < number_of_tests; i++){
         SudokuBoard* board_recursive_sequential = generateSudokuBoard("easy"); //random board
         SudokuBoard* board_humanistic = new SudokuBoard(board_recursive_sequential->boardToString()); //same random board
@@ -825,28 +763,31 @@ void runTestsSequential(int number_of_tests){
         board_recursive_sequential->printBoard();
         
         if (board_recursive_sequential->SequentialRecursiveBacktrackSolve() == 0){
-            board_recursive_sequential->printBoard(); 
+            seq_passes++;
             printf("\n********************************\nrecursive backtrack solved the board!\n********************************\n");
         } else {
             printf("recursive backtracking is incomplete or incorrect\n");
+            board_recursive_sequential->printBoard(); 
         }
 
         if (board_humanistic->SequentialHumanisticSolve() == 0){
+            human_passes++;
             printf("\n********************************\nsequential humanistic solved the board!\n********************************\n");
         } else {
             printf("humanistic is incomplete or incorrect\n");
+            board_humanistic->printBoard(); 
         }
         
-        printf("\n*******************************\nEND OF SEQUENTIAL SOLVER\n*******************************\n\n");
-        
-        /***********************************************************************************/
-
         //solveBoardParallelDriver
         
         delete board_recursive_sequential;
         delete board_humanistic;
         //delete b_par;
     }
+
+    printf("\n*******************************\nEND OF TESTS\n*******************************\n\n");
+    printf("Recursive backtracking passed %d out of %d tests\n", seq_passes, number_of_tests);
+    printf("Humanistic passed %d out of %d tests\n", human_passes, number_of_tests);
     
     return;
 }
@@ -865,7 +806,7 @@ int main(int argc, char** argv){
     MPI_Comm_size(MPI_COMM_WORLD, &number_of_ranks); //the total number of processes in the world
 
     if( myrank == 0 ){
-        runTestsSequential(1); 
+        runTestsSequential(100); 
         
         /*Running 16x16 random board is super time consuming because of the time it takes to produce an evil board. 
         Sometimes it takes forever and sometimes its instant, depending on the random numbers chosen i think.
@@ -874,26 +815,7 @@ int main(int argc, char** argv){
         Also, sequential filling of an empty board is much faster than random because it narrows down places numbers can go or something?
 
         */
-
-        /*SudokuBoard* t = new SudokuBoard(test2);
-        t->SequentialHumanisticSolve();
-        t->printBoard();
-        if (t->checkBoard() != 0){throw;}*/
-        /*
-        SudokuBoard* test = generateSudokuBoard("easy");
-        
-        printf("*******************************\nINITIAL SEQUENTIAL BOARD STATE\n*******************************\n\n");
-        test->printBoard(); 
-        
-        if (test->SequentialHumanisticSolve() == 0){
-            printf("\n*******************************\nBOARD IS SOLVED\n*******************************\n\n");
-        } else {
-            printf("board is incomplete or incorrect\n");
-        }
-        
-        test->printBoard();  
-        printf("\n*******************************\nEND OF SEQUENTIAL SOLVER\n*******************************\n\n");
-        */
+    
     } 
     
     /*---------------------------------------------------*/
@@ -970,3 +892,25 @@ int main(int argc, char** argv){
     //DRMEMORY expects 427,000 bytes reachable and valgrind expects 71,000 bytes. Dont worry :)
     return 0;
 }
+
+
+
+    /*SudokuBoard* t = new SudokuBoard(test2);
+        t->SequentialHumanisticSolve();
+        t->printBoard();
+        if (t->checkBoard() != 0){throw;}*/
+        /*
+        SudokuBoard* test = generateSudokuBoard("easy");
+        
+        printf("*******************************\nINITIAL SEQUENTIAL BOARD STATE\n*******************************\n\n");
+        test->printBoard(); 
+        
+        if (test->SequentialHumanisticSolve() == 0){
+            printf("\n*******************************\nBOARD IS SOLVED\n*******************************\n\n");
+        } else {
+            printf("board is incomplete or incorrect\n");
+        }
+        
+        test->printBoard();  
+        printf("\n*******************************\nEND OF SEQUENTIAL SOLVER\n*******************************\n\n");
+        */
