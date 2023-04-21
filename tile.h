@@ -15,6 +15,7 @@ int boardsize = 9;
 #ifdef BOARDSIZE16
 int boardsize = 16;
 #endif
+int sudoku_size = boardsize*boardsize;
 
 void printVector(vector<int> v){
     for (unsigned int i = 0; i < v.size(); i++) {
