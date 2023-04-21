@@ -18,13 +18,7 @@ TODO:
     sequential simulated annealing solution with/without guessing and checking
     paralell simualted annealing solution with/without guessing and checking
     
-    make a copy constructor for boards
-
-    **DEBUG: when a board is imported, humanistic works fine. When randomly generating a board, it doesnt work... so somewhere the pos_values arent gettng set properly
-
-    read from file instead of from string- should I even be doing this?
-        id have to generate a puzzle, write to file, read from file... isnt that stupid?
-        Just read from string, write to file
+    create a huge huge huge file of like 10, 100, 1000 9x9 boards and another file of 100 16x16 boards
 
     * Go through all the resources, summarize them with bulletpoint notes, see what we can use in our own project
 
@@ -38,7 +32,7 @@ For parallel input
 
         they probably wont use allgather, scatter, broadcast but consider
 
-for parallel output since I think each process needs to be designated a particular spot in the file,  
+for parallel output (WE DONT NEED IT ACTUALLY) since I think each process needs to be designated a particular spot in the file,  
     the output could have each process with its block state, and its updated in parallel. 
     at the end, there is summary only written to by the main process that shows completion point outputs:
         "process %d solved row %d at time %d" (not completely necessary but nice to have)

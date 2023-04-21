@@ -495,8 +495,6 @@ class SudokuBoard{
 #endif
         void addPosValue(int val, int originalx, int originaly){
             //go through the row, col, and block containing coordinate (x,y) and remove val from all tiles' pos_values
-            
-
 
             //you cant always just add a possible value back 
             /*
@@ -806,7 +804,7 @@ int main(int argc, char** argv){
     MPI_Comm_size(MPI_COMM_WORLD, &number_of_ranks); //the total number of processes in the world
 
     if( myrank == 0 ){
-        runTestsSequential(100); 
+        runTestsSequential(2); 
         
         /*Running 16x16 random board is super time consuming because of the time it takes to produce an evil board. 
         Sometimes it takes forever and sometimes its instant, depending on the random numbers chosen i think.
@@ -824,8 +822,8 @@ int main(int argc, char** argv){
     MPI_Barrier(MPI_COMM_WORLD);
     /*---------------------------------------------------*/
 
-#if 0
-    if( myrank == 0 ){
+#if 1
+    if( myrank == 0 ){ // My main man
         SudokuBoard* myBoard = generateSudokuBoard("trivial");
         string boardString = myBoard->boardToString(); 
 
@@ -833,15 +831,21 @@ int main(int argc, char** argv){
         strcpy( board, boardString.c_str() );
 
         vector<bool> sendToArray(9, true); // Array of if we are sending a message to the a specific rank 0 is rank 1 etc etc.
-        vector<char> sendToValues(9, '1'); // Array of what location each rank is meant to check for
+        vector<char> sendToValues(9, '1'); // Array of what location each rank is meant to check for <===========================
 
         bool sudokuNotComplete = true;
+        
+        int tiles_updated = 0;
+        int blocks_updated = 0;
+
         while( sudokuNotComplete ){
+            blocks_updated = 0;
             // STEP 1: generate spots to check {boardsize} at most 1 at least
             // STEP 2: flag vector with processes that match the block
             
             for (unsigned int i = 0; i < sendToArray.size(); i++){
                 if( sendToArray[i] ){  
+
                     char tile = sendToValues[i]; // Tile location 1-z as a char
                     char message[sudoku_size + 3] = ""; //Message to be sent to rank i + 1
 
@@ -853,10 +857,28 @@ int main(int argc, char** argv){
                     // --------------------------------------------------- //
 
                     MPI_Send(message, sudoku_size + 3, MPI_CHAR, i + 1, 0, MPI_COMM_WORLD);
+                    blocks_updated++;
                 } 
             }
+
+            tiles_updated = 0;
+            for (size_t i = 0; i < blocks_updated; i++){
+                // 007 -- Receive the number here variable int updated -> updated += message_count
+                //tiles_updated += // message count
+            }
             
-            if( true /* IS BOARD FILLED ( Complete Board Function ) */ ){ sudokuNotComplete = false; }
+            if( tiles_updated == 0 ){
+                //Recursive Backtracking
+            } else { 
+                // update the board
+            }
+
+            // Recursive backtracking if updated is 0
+            
+
+            SudokuBoard* test = new SudokuBoard(board);
+            if( test->checkBoard() == 0 ){ sudokuNotComplete = false; } 
+            delete test;
         }
     } else {
         char message[sudoku_size + 3] = "";
@@ -877,11 +899,16 @@ int main(int argc, char** argv){
             iss.getline(tile, 2);
             // --------------------------------------------------- //
 
-            // Start the code to do Recursive Back Tracking
             printf("Rank %d received a message from rank %d that is a Board: %s and a Tile: %s\n", myrank, status.MPI_SOURCE, board, tile);
             
-            //This Will Be deleted later!!!! IMPORTANT
-            if( true /* IS BOARD FILLED  ( Complete Board Function ) */){ keepLooping = false; }
+            // Elimination goes here
+            // <--- Rest  Here
+
+            // 007 -- Send rank 0 the number of elements changed by elimination (or rest of the algorithms)
+
+            SudokuBoard* test = new SudokuBoard(board);
+            if( test->checkBoard() == 0 ){ keepLooping = false; }
+            delete test;
         }
     }
 #endif
