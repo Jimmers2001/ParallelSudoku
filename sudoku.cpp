@@ -98,6 +98,14 @@ string empty_board = "\
 /// @param endy INCLUSIVE ending y
 void setBlockCoordinates(int myrank, int& startx, int& starty, int& endx, int& endy){
     //set coordinates for a 9x9 board
+    int blockSize = (int) sqrt(boardsize);
+    int blockX = (myrank - 1) % blockSize;
+    int blockY = (myrank - 1) / blockSize;
+    startx = blockX * blockSize;
+    starty = blockY * blockSize;
+    endx = startx + blockSize - 1;
+    endy = starty + blockSize - 1;
+    return;
     if (boardsize == 9){
         if( myrank == 1 ){ startx = 0; endx = 2; starty = 0; endy = 2; return; }
         if( myrank == 2 ){ startx = 3; endx = 5; starty = 0; endy = 2; return; }
@@ -548,10 +556,6 @@ class SudokuBoard{
         }
         
         bool ParallelEliminationRule(int xstart, int ystart, int xend, int yend){
-            //look through all of this blocks' tiles' possible_values lists. If any are of size 1, 
-            //then that must be the answer, so make the change
-                //what if we guess and then we use a rule, are we guaranteed a solution?
-            //have functionality for each block running this 
             int numChanges = 0;
             /*
             bool madechange = True
@@ -913,11 +917,11 @@ int main(int argc, char** argv){
             vector<pair<int, int>> empty_tiles = myBoard->getAllEmptyTiles();
 
             //check what block each tile is in, and set that block's index to true in sendToArray
-            /*for (unsigned int i = 0; i < empty_tiles.size(); i++){
+            for (unsigned int i = 0; i < empty_tiles.size(); i++){
                 pair<int, int> coord = empty_tiles[i];
                 int bnum = tileToBlock(coord.first, coord.second);
                 sendToArray[bnum] = true;
-            }*/
+            }
 
             //if all of sendToArray is false board is full so check if board is done
             //if board is done send terminate to all ranks through messages and print board
@@ -956,9 +960,7 @@ int main(int argc, char** argv){
                  if( sendToArray[i] ){  
                     char incoming_message[sudoku_size + 3] = "";
                     char incoming_board[sudoku_size + 1],  incoming_tiles_updated[1];
-                    MPI_Recv(&incoming_message, sudoku_size + 3, MPI_CHAR, i + 1, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-                    //printf("We are rank 0 and we gor a message from rank %d saying:\n\t-> %s\n", i+1 , incoming_message );
-                    
+                    MPI_Recv(&incoming_message, sudoku_size + 3, MPI_CHAR, i + 1, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);                   
                 
                     // split the message
                     // tiles_updated += count_from_msg
