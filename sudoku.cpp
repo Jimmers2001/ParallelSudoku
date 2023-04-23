@@ -130,6 +130,27 @@ void setBlockCoordinates(int myrank, int& startx, int& starty, int& endx, int& e
     }
 }
 
+
+string maxString(string str1, string str2) {
+    int n = str1.size();
+    int m = str2.size();
+    int maxLen = max(n, m);
+
+    // Make both strings the same length by adding leading zeros
+    str1 = string(maxLen - n, '0') + str1;
+    str2 = string(maxLen - m, '0') + str2;
+
+    string result = "";
+
+    for (int i = 0; i < maxLen; i++) {
+        char c = max(str1[i], str2[i]);
+        result += c;
+    }
+
+    return result;
+}
+
+
 /// @brief A square sudoku board defined by a boardsize global variable initialized to 0. It 
 /// @brief requires that all the numbers from 1-boardsize inclusive exist in each row and column without repeats
 class SudokuBoard{
@@ -740,6 +761,122 @@ class SudokuBoard{
         }
         return pairs;
     }
+
+
+    
+    int ParallelHumanisticSolve(){
+        vector<bool> sendToArray(9, true); // Array of if we are sending a message to the a specific rank 0 is rank 1 etc etc.
+        vector<char> sendToValues(9, '1'); // Array of what location each rank is meant to check for <===========================
+
+        bool sudokuNotComplete = true;
+        
+        int tiles_updated = 0;
+        int blocks_updated = 0;
+        int count = 0;
+
+        while( sudokuNotComplete ){
+   
+            blocks_updated = 0;
+            //Step 1: check all blocks to see if any empty spaces in blocks
+            //vector<pair<int, int>> empty_tiles = this->getAllEmptyTiles();
+
+            //check what block each tile is in, and set that block's index to true in sendToArray
+            //for (unsigned int i = 0; i < empty_tiles.size(); i++){
+             //   pair<int, int> coord = empty_tiles[i];
+             //   int bnum = tileToBlock(coord.first, coord.second);
+             //   sendToArray[bnum] = true;
+           // }
+
+            //if all of sendToArray is false board is full so check if board is done
+            //if board is done send terminate to all ranks through messages and print board
+            
+            for (unsigned int i = 0; i < sendToArray.size(); i++){
+                if( sendToArray[i] ){  
+
+                    char tile = sendToValues[i]; // Tile location 1-z as a char
+                    char message[sudoku_size + 3] = ""; //Message to be sent to rank i + 1
+
+                    string b = this->boardToString(); 
+                    
+                    char send_board[b.length() + 2]; //
+                    strcpy( send_board, b.c_str() );
+                
+
+                    // Concat the String to be 'Board' + ' ' + 'Location'
+                    // Note: Location is a single char 1-z
+                    strcat(message,  send_board );
+                    strcat(message, " ");
+                    strncat(message, &tile, 1);
+                    strcat(message, "\0");
+                    // --------------------------------------------------- //
+                     //printf("\n\n\nCurrent Message to %d is: %s\n\n\n", i ,board);
+
+                    MPI_Send(message, sudoku_size + 3, MPI_CHAR, i + 1, 0, MPI_COMM_WORLD);
+                    blocks_updated++;
+                } 
+            }
+
+            tiles_updated = 0;
+            string newBoardString = this->boardToString(); 
+            
+        
+             for (unsigned int i = 0; i < sendToArray.size(); i++) {
+                 if( sendToArray[i] ){  
+                    char incoming_message[sudoku_size + 3] = "";
+                    char incoming_board[sudoku_size + 1],  incoming_tiles_updated[1];
+                    MPI_Recv(&incoming_message, sudoku_size + 3, MPI_CHAR, i + 1, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);                   
+                
+                    // split the message
+                    // tiles_updated += count_from_msg
+                    // mesh current board into main board
+                    istringstream iss(incoming_message);
+                    iss.getline(incoming_board, sudoku_size + 3 , ' ');
+                    iss.getline(incoming_tiles_updated, 2);
+
+                    int incoming_tile_updated_count = incoming_tiles_updated[0] - '0';
+                    tiles_updated += incoming_tile_updated_count;
+
+                    string boardstring(incoming_board);
+                    newBoardString = maxString(newBoardString , incoming_board); //IT IS HERE
+                 }
+            }
+
+            int xstart = 0, ystart = 0, xend = 9, yend = 9, _count = 0;
+
+            for (int x = xstart; x < xend; x++){
+                for (int y = ystart; y < yend; y++){   
+                    printf("Hello World 3.5 -> %d %d -> %d\n", x, y, newBoardString[_count] - '0');       
+                    //this->setValue(x,y, newBoardString[_count++] - '0' );
+                    tiles[y][x].setVal(newBoardString[_count] - '0' ); 
+                    
+                    _count++;   
+                } 
+            }
+            //this(newBoardString);
+
+            printf("Rank 0 Here Main Board is Currently: %s",  this->boardToString().c_str()); 
+    
+            if( tiles_updated == 0 ){
+               // WE DO COOL BACK TRACKIN SHIT HERE
+
+               // Make a 
+
+            } else { // free old memory and update the board }
+                int r, c;
+                if( !this->findEmptyTile(r,c) ){
+                    for (unsigned int i = 0; i < sendToArray.size(); i++) {
+                        const char* message = "terminate";
+                        MPI_Send(const_cast<char*>(message), sudoku_size + 3, MPI_CHAR, i + 1, 0, MPI_COMM_WORLD);
+                    }
+                    printf("\n*******************************\nWE HAVE MADE IT\n*******************************\n\n");
+                    this->printBoard(); 
+                    
+                    sudokuNotComplete = false; 
+                }
+            }
+        }
+
+    }
 };
 
 /// @brief Randomly generates a sudoku board
@@ -873,25 +1010,6 @@ int tileToBlock(int x, int y){
 }
 
 
-string maxString(string str1, string str2) {
-    int n = str1.size();
-    int m = str2.size();
-    int maxLen = max(n, m);
-
-    // Make both strings the same length by adding leading zeros
-    str1 = string(maxLen - n, '0') + str1;
-    str2 = string(maxLen - m, '0') + str2;
-
-    string result = "";
-
-    for (int i = 0; i < maxLen; i++) {
-        char c = max(str1[i], str2[i]);
-        result += c;
-    }
-
-    return result;
-}
-
 /*
 #define NUM_THREADS 9
 __global__ void cuda_kernel() {
@@ -927,8 +1045,8 @@ int ParallelDriver(){
         int count = 0;
 
 
-    //  myBoard->ParallelSequentialRecursiveBacktrackSolve();
-    #if 1 //EVERYTHING IN HERE NEEDS TO GO
+    myBoard->ParallelHumanisticSolve();
+    #if 0 //EVERYTHING IN HERE NEEDS TO GO
         while( sudokuNotComplete ){
             count++;
             blocks_updated = 0;
