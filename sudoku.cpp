@@ -14,6 +14,8 @@
 #include <sstream>
 using namespace std;
 
+extern void CudaThings();
+
 //numbers 1-9 and then continuing with letters a-z for 10-36
 
 // JIMMOTHY TILES[Y][X]
@@ -420,32 +422,6 @@ class SudokuBoard{
             return 1;
         }
 
-        /// @brief Parallel attempt to fill in every empty grid in the board
-        /// @return 0 on success, 1 on error, tiles will be filled correctly on success
-        int solveBoardParallelDriver(int argc, char** argv){
-            //initialize mpi
-            int myrank;
-            int number_of_ranks;
-            MPI_Comm_rank(MPI_COMM_WORLD, &myrank); //this processes' individual rank
-            MPI_Comm_size(MPI_COMM_WORLD, &number_of_ranks); //the total number of processes in the world
-            
-            MPI_Barrier(MPI_COMM_WORLD);
-            //go through and fill every element of the board (write solution to file) IN PARALLEL
-            
-            if( myrank != 0 ){
-                recursiveParallel(myrank);
-            } else { 
-                while( false /*fix later*/ ){
-                    //wait until all threads do magic
-                    //do things depending on magic
-                    
-                }
-             }
-                 
-            //test board and terminate
-            //MPI_Finalize();
-            return checkBoard();
-        }
 
         /// @brief Checks if the given val can put placed anywhere in the y
         /// @param y the y being checked
@@ -562,7 +538,7 @@ class SudokuBoard{
         
         bool ParallelEliminationRule(int xstart, int ystart, int xend, int yend){
             int numChanges = 0;
-            char* board;
+            //char* board;
             string boardcopy = boardToString();
             /*cudaMallocManaged(&board, sizeof(int)*sudoku_size);
 
@@ -699,7 +675,9 @@ class SudokuBoard{
     /// @brief Randomly fills up a board
     /// @return 0 on success, 1 on inability to solve
     int randomBoardSolve(){
-        //test board
+        if (tiles.size()*tiles.size() != (unsigned int) sudoku_size){printf("tiles has len: %d\n", (int) (tiles.size()*tiles.size())); printBoard(); throw;}
+        //HOW IS IT POSSIBLE THAT THE LENGTH OF TILES IS CHANGING FROM 256 TO 368 FOR A 16X16 BOARD
+        //else{printf("tiles is good with length: %u\n", (unsigned int) tiles.size()*tiles.size());}
         int y = 0;
         int x = 0;
         if (!findEmptyTile(y, x)){
@@ -789,9 +767,12 @@ SudokuBoard* generateSudokuBoard(string difficulty){
 
     //initialize a board to empty and add in random given numbers
     SudokuBoard* random_board = new SudokuBoard(empty_board);
-
+    if (random_board->boardToString().size() != (unsigned int) sudoku_size){printf("bad empty board with len: %u\n", (unsigned int) random_board->boardToString().size());throw;}
     random_board->randomBoardSolve(); //complete the board randomly and then remove elements
-
+    if (random_board->boardToString().size() != (unsigned int) sudoku_size){printf("bad random generated board with len: %u\n", (unsigned int) random_board->boardToString().size());
+    random_board->printBoard();
+    printf("%s\n", random_board->boardToString().c_str());
+    throw;}
     //current coordinate position
     int x;
     int y;
@@ -823,6 +804,7 @@ void createTestBoards(int numtests, string difficulty){
     for (int i = 0; i < numtests; i++) {
         SudokuBoard* tmp = generateSudokuBoard(difficulty);
         string bstring = tmp->boardToString();
+        if (bstring.size() != (unsigned int) sudoku_size){printf("bad bstring\n"); throw;}
         outfile << bstring << endl;
         delete tmp;
     }
@@ -866,9 +848,7 @@ void runTestsSequential(int number_of_tests){
             printf("humanistic is incomplete or incorrect\n");
             board_humanistic->printBoard(); 
         }
-        
-        //solveBoardParallelDriver
-        
+                
         delete board_recursive_sequential;
         delete board_humanistic;
         //delete b_par;
@@ -912,42 +892,18 @@ string maxString(string str1, string str2) {
     return result;
 }
 
-int main(int argc, char** argv){
-    int myrank = 0;
-    int number_of_ranks = 0;
+/*
+#define NUM_THREADS 9
+__global__ void cuda_kernel() {
+  // your CUDA kernel code here
+  printf("Hello World\n");
+}*/
 
-    //character that represents the "{board} {#tile to solve}" which is space separated and has null terminating character
-    //char board[sudoku_size] = "Hello";
 
-    MPI_Init(&argc, &argv);
-    MPI_Comm_rank(MPI_COMM_WORLD, &myrank); //this processes' individual rank
-    MPI_Comm_size(MPI_COMM_WORLD, &number_of_ranks); //the total number of processes in the world
 
-    if( myrank == 0 ){
-        //runTestsSequential(1); 
-        
-        /*Running 16x16 random board is super time consuming because of the time it takes to produce an evil board. 
-        Sometimes it takes forever and sometimes its instant, depending on the random numbers chosen i think.
-        I should probably exclude the board creation times when gathering real data.
-
-        Also, sequential filling of an empty board is much faster than random because it narrows down places numbers can go or something?
-
-        */
-    } 
-    
-    /*---------------------------------------------------*/
-    /*              YOU THREADS SHALL NOT PASS           */
-                    MPI_Barrier(MPI_COMM_WORLD);      
-    /*---------------------------------------------------*/
-
-#if 1
-    if( myrank == 0 ){ // My main man
-        std::ifstream file(outfilename);
-        //file is empty
-        if (file.peek() == std::ifstream::traits_type::eof()){
-            createTestBoards(10000, "evil");
-        }
-
+int ParallelDriver(){
+        //printf("Hello World");
+      
         printf("\n*******************************\nSTART OF PARRALLEL CODE\n*******************************\n\n");
         //initialize the test board
         SudokuBoard* myBoard = generateSudokuBoard("trivial");
@@ -970,6 +926,9 @@ int main(int argc, char** argv){
         int blocks_updated = 0;
         int count = 0;
 
+
+    //  myBoard->ParallelSequentialRecursiveBacktrackSolve();
+    #if 1 //EVERYTHING IN HERE NEEDS TO GO
         while( sudokuNotComplete ){
             count++;
             blocks_updated = 0;
@@ -1050,7 +1009,8 @@ int main(int argc, char** argv){
                 int r, c;
                 if( !myBoard->findEmptyTile(r,c) ){
                     for (unsigned int i = 0; i < sendToArray.size(); i++) {
-                        MPI_Send("terminate", sudoku_size + 3, MPI_CHAR, i + 1, 0, MPI_COMM_WORLD);
+                        const char* message = "terminate";
+                        MPI_Send(const_cast<char*>(message), sudoku_size + 3, MPI_CHAR, i + 1, 0, MPI_COMM_WORLD);
                     }
                     printf("\n*******************************\nWE HAVE MADE IT\n*******************************\n\n");
                     myBoard->printBoard(); 
@@ -1059,6 +1019,59 @@ int main(int argc, char** argv){
                 }
             }
         }
+    #endif
+
+
+
+    return 1;
+}
+
+
+
+int main(int argc, char** argv){
+    int myrank = 0;
+    int number_of_ranks = 0;
+
+    //character that represents the "{board} {#tile to solve}" which is space separated and has null terminating character
+    //char board[sudoku_size] = "Hello";
+
+    MPI_Init(&argc, &argv);
+    MPI_Comm_rank(MPI_COMM_WORLD, &myrank); //this processes' individual rank
+    MPI_Comm_size(MPI_COMM_WORLD, &number_of_ranks); //the total number of processes in the world
+
+    if( myrank == 0 ){
+        //runTestsSequential(1); 
+        
+        /*Running 16x16 random board is super time consuming because of the time it takes to produce an evil board. 
+        Sometimes it takes forever and sometimes its instant, depending on the random numbers chosen i think.
+        I should probably exclude the board creation times when gathering real data.
+
+        Also, sequential filling of an empty board is much faster than random because it narrows down places numbers can go or something?
+
+        */
+    } 
+    
+    /*---------------------------------------------------*/
+    /*              YOU THREADS SHALL NOT PASS           */
+                    MPI_Barrier(MPI_COMM_WORLD);      
+    /*---------------------------------------------------*/
+    CudaThings();
+     // check if CUDA is available
+/*
+  int cuda_device_count;
+  cudaGetDeviceCount(&cuda_device_count);
+  if (cuda_device_count < 1) {
+    fprintf(stderr, "CUDA device not found.\n");
+    exit(1);
+  }
+
+  // select a CUDA device to use
+  cudaSetDevice(myrank % cuda_device_count);
+*/
+#if 1
+    if( myrank == 0 ){ // My main man
+
+        ParallelDriver();
 
     //we are a child process
     } else {
@@ -1086,6 +1099,14 @@ int main(int argc, char** argv){
             string boardstring(board);
             SudokuBoard* myboard = new SudokuBoard(boardstring);
 
+
+            /*  CUDA HERE */
+            // launch the CUDA kernel using the CUDA runtime API
+            
+            //cuda_kernel<<<1, NUM_THREADS>>>();
+
+
+  
             // Elim Goes here
             int startx, starty, endx, endy;
             setBlockCoordinates(myrank, startx, starty, endx, endy);
