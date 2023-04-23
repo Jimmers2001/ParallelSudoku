@@ -547,6 +547,39 @@ class SudokuBoard{
             }
         }
         
+        bool ParallelEliminationRule(int xstart, int ystart, int xend, int yend){
+            //look through all of this blocks' tiles' possible_values lists. If any are of size 1, 
+            //then that must be the answer, so make the change
+                //what if we guess and then we use a rule, are we guaranteed a solution?
+            //have functionality for each block running this 
+            int numChanges = 0;
+            /*
+            bool madechange = True
+
+            while (madechange){
+                madechange = false;
+                call 9 cuda kernels, one for each tile in the block, 
+                if a kernel made a change, set madechange to true and store that changed board as our board
+            }
+
+            for (int x = xstart; x <= xend; x++){
+                for (int y = ystart; y <= yend; y++){
+                    if (tiles[y][x].getVal() == 0){
+                        set<int>* pos_values = tiles[y][x].getPosValues();
+                        if (pos_values->size() == 1){
+                            setValue(x,y,*(pos_values->begin()));
+                            numChanges++;
+
+                            //RESTART THE LOOP SINCE A CHANGE WAS MADE
+                            x = xstart;
+                            y = ystart-1;
+                        }
+                    } 
+                }
+            }*/
+            return (numChanges>0);
+        }
+
         /// @brief Attempts the humanistic "elimination" rule as many times as possible
         /// @param xstart the x position of the top left of the block
         /// @param ystart the y position of the top left of the block
@@ -576,49 +609,6 @@ class SudokuBoard{
             }
             return (numChanges>0);
         }
-
-        
-        bool ParallelEliminationRule(int xstart, int ystart, int xend, int yend){
-            //look through all of this blocks' tiles' possible_values lists. If any are of size 1, 
-            //then that must be the answer, so make the change
-                //what if we guess and then we use a rule, are we guaranteed a solution?
-            //have functionality for each block running this 
-            /*int numChanges = 0;
-
-            bool madechange = True
-
-            while (madechange){
-                madechange = false;
-                call 9 cuda kernels, one for each tile in the block, 
-                if a kernel made a change, set madechange to true and store that changed board as our board
-            }
-
-
-
-
-            for (int x = xstart; x <= xend; x++){
-                for (int y = ystart; y <= yend; y++){
-                    if (tiles[y][x].getVal() == 0){
-                        set<int>* pos_values = tiles[y][x].getPosValues();
-                        if (pos_values->size() == 1){
-                            setValue(x,y,*(pos_values->begin()));
-                            numChanges++;
-
-                            //RESTART THE LOOP SINCE A CHANGE WAS MADE
-                            x = xstart;
-                            y = ystart-1;
-                        }
-                    } 
-                }
-            }*/
-            return (numChanges>0);
-        }
-
-
-
-
-
-
         
         /// @brief Attempts first to use humanistic rules to solve, and brute forces as a last resort
         /// @return 0 on success, 1 on inability to solve
@@ -991,19 +981,20 @@ int main(int argc, char** argv){
     
             if( tiles_updated == 0 ){
                // WE DO COOL BACK TRACKIN SHIT HERE
-               // Make a LIST REVERT SHIT
+
+               // Make a 
 
             } else { // free old memory and update the board }
-
-            int r, c;
-            if( !myBoard->findEmptyTile(r,c) ){
-                for (unsigned int i = 0; i < sendToArray.size(); i++) {
-                    MPI_Send("terminate", sudoku_size + 3, MPI_CHAR, i + 1, 0, MPI_COMM_WORLD);
+                int r, c;
+                if( !myBoard->findEmptyTile(r,c) ){
+                    for (unsigned int i = 0; i < sendToArray.size(); i++) {
+                        MPI_Send("terminate", sudoku_size + 3, MPI_CHAR, i + 1, 0, MPI_COMM_WORLD);
+                    }
+                    printf("\n*******************************\nWE HAVE MADE IT\n*******************************\n\n");
+                    myBoard->printBoard(); 
+                    
+                    sudokuNotComplete = false; 
                 }
-                printf("\n*******************************\nWE HAVE MADE IT\n*******************************\n\n");
-                myBoard->printBoard(); 
-                
-                sudokuNotComplete = false; 
             }
         }
 
@@ -1048,10 +1039,7 @@ int main(int argc, char** argv){
             strncat(send_board, &change_count, 1);
             strcat( send_board, "\0");
 
-        
-
-            
-            printf("In rank %d we have a board of:\n\tMessage: %s\n", myrank, send_board);
+            //printf("In rank %d we have a board of:\n\tMessage: %s\n", myrank, send_board);
 
 
             // -------------------------- All Code above this line ----------------------------//
