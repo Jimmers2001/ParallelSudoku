@@ -4,24 +4,22 @@
 #include <cctype>
 #include <string>
 #include <mpi.h>
-#include <mutex>
 #include <numeric>
 #include <cmath>
+#include <cuda_runtime.h>
+#include <fstream>
 #include "tile.h"
 
 #include <cstring>
 #include <sstream>
 using namespace std;
 
-//GLOBAL DEFINES
 //numbers 1-9 and then continuing with letters a-z for 10-36
-//boardsize defined in tile.h
-
 
 // JIMMOTHY TILES[Y][X]
 
 int EMPTY = 0;
-std::mutex global_mutex;
+string outfilename = "sample_tests.txt";
 
 //define some board examples
 string test2 = "\
@@ -88,6 +86,13 @@ string empty_board = "\
     ";
 #endif
 
+#include <chrono>
+
+long long getCurrentTimeMicros() {
+    auto time = std::chrono::high_resolution_clock::now();
+    auto duration = time.time_since_epoch();
+    return std::chrono::duration_cast<std::chrono::microseconds>(duration).count();
+}
 
 
 /// @brief Assigns a particular rank its block to solve in parallel
@@ -557,12 +562,44 @@ class SudokuBoard{
         
         bool ParallelEliminationRule(int xstart, int ystart, int xend, int yend){
             int numChanges = 0;
+            char* board;
+            string boardcopy = boardToString();
+            /*cudaMallocManaged(&board, sizeof(int)*sudoku_size);
+
+            for (unsigned int i = 0; i < boardcopy.size(); i++){
+                board[i] = boardcopy[i];
+            }
+
+            for (unsigned int i = 0; i < boardcopy.size(); i++){
+                printf("%c", board[i]);
+            }
+            printf("\n\n\n");
+            cudaFree(board);*/
+
+            /*I think this existing thought process is incorrect. 
+            all of this cuda initialization needs to happen in a function that initializes a char[] 
+            for the board. Then it calls a new variation of elimination (like parallelElimRule) 
+            that actually sets the changes of the board instead of just returning how many changes 
+            were made. That way, the device has a board variable that gets changed in cuda and it can be returned and analyzed.
+            */
+            
+            
             /*
-            bool madechange = True
+            int block_size = boardsize;//for 16x16 we want 16 threads per block, and 9 for 9x9
+            int num_blocks = (sudoku_size + block_size - 1) / block_size;////////////unsure about dimensions
+            
+            
+            //int blockSize = 256;
+            //int numBlocks = (vec.size() + blockSize - 1) / blockSize;
+            
+
+            bool madechange = true;
 
             while (madechange){
                 madechange = false;
-                call 9 cuda kernels, one for each tile in the block, 
+                //call 9 cuda kernels, one for each block
+                eliminationRule<<<numBlocks, blockSize>>>(devArr, vec.size(), devResult);
+
                 if a kernel made a change, set madechange to true and store that changed board as our board
             }
 
@@ -727,28 +764,28 @@ class SudokuBoard{
     }
 };
 
-
-
 /// @brief Randomly generates a sudoku board
 /// @param difficulty string that determines the range of the number of givens to randomly start the board with
 /// @return Uses boardsize to make a sudoku board to solve
 SudokuBoard* generateSudokuBoard(string difficulty){
     //Seed the random number generator with the current time
-    srand(time(0));
+    srand(getCurrentTimeMicros());
     //chose the number of givens to include in the generated board
     unsigned int number_of_givens;
     int total_squares = sudoku_size;
     if (difficulty == "evil"){
         number_of_givens = 3 + (rand() % static_cast<int>(6 - 3 + 1)); //~[3,6] exclusive range
     } else if (difficulty == "easy"){
-        number_of_givens = (total_squares-20) + (rand() % static_cast<int>((total_squares-10) - (total_squares-20) + 1)); //~[70,90] exclusive range
+        number_of_givens = (total_squares-20) + (rand() % static_cast<int>((total_squares-10) - (total_squares-20) + 1)); //missing 10-20 squares
+    } else if (difficulty == "expert"){
+        number_of_givens = 10 + (rand() % static_cast<int>(15 - 10 + 1)); //~[10,15] exclusive range
     } else if (difficulty == "trivial"){
-        number_of_givens = (total_squares-5) + (rand() % static_cast<int>((total_squares-2) - (total_squares-5) + 1)); //~[70,90] exclusive range
+        number_of_givens = (total_squares-5) + (rand() % static_cast<int>((total_squares-2) - (total_squares-5) + 1)); //missing 2-5 squares
     } else { 
-        number_of_givens = (total_squares/4) + (rand() % static_cast<int>((total_squares/2) - (total_squares/4) + 1)); //~[20,30] exclusive range
+        number_of_givens = 30 + (rand() % static_cast<int>(40 - 30 + 1)); //[30,40] exclusive range
     }
      
-    printf("# of givens: %d\n", number_of_givens);
+    //printf("# of givens: %d\n", number_of_givens);
 
     //initialize a board to empty and add in random given numbers
     SudokuBoard* random_board = new SudokuBoard(empty_board);
@@ -774,6 +811,23 @@ SudokuBoard* generateSudokuBoard(string difficulty){
         }
     }
     return random_board; //returns the board* for dereferencing in the future
+}
+
+void createTestBoards(int numtests, string difficulty){
+    ofstream outfile(outfilename);
+    if (!outfile) {
+        cerr << "Error opening file!" << endl;
+        return;
+    }
+    
+    for (int i = 0; i < numtests; i++) {
+        SudokuBoard* tmp = generateSudokuBoard(difficulty);
+        string bstring = tmp->boardToString();
+        outfile << bstring << endl;
+        delete tmp;
+    }
+    
+    outfile.close();
 }
 
 /// @brief Runs all solvers potentially many times
@@ -888,6 +942,12 @@ int main(int argc, char** argv){
 
 #if 1
     if( myrank == 0 ){ // My main man
+        std::ifstream file(outfilename);
+        //file is empty
+        if (file.peek() == std::ifstream::traits_type::eof()){
+            createTestBoards(10000, "evil");
+        }
+
         printf("\n*******************************\nSTART OF PARRALLEL CODE\n*******************************\n\n");
         //initialize the test board
         SudokuBoard* myBoard = generateSudokuBoard("trivial");
