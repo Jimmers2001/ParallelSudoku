@@ -14,8 +14,8 @@ __global__ void __multiply__ (){
 }*/
  
  extern "C++" void CudaThings(){
-   printf("In Cuda Things\n");
-   std::cout << "in Cuda Things and confirming C++\n" << std::endl;
+   //printf("In Cuda Things\n");
+   //std::cout << "in Cuda Things and confirming C++\n" << std::endl;
 
      /* ... Load CPU data into GPU buffers  */
      //__multiply__ <<< ...block configuration... >>> (x, y);

@@ -15,13 +15,15 @@ ALGORITHM:
         using SIMULATED ANNEALING, start guessing very randomly (aka like 9 guesses) and as the problem gets smaller, guess more predictively (aka like only 3 guesses)
 
 TODO:
-    create a function that takes in a number representing the block and returns if that block is empty or not
-    sequential simulated annealing solution with/without guessing and checking
-    paralell simualted annealing solution with/without guessing and checking
-    
-    create a huge huge huge file of like 10, 100, 1000 9x9 boards and another file of 100 16x16 boards
+    PARALLEL IO
 
-    * Go through all the resources, summarize them with bulletpoint notes, see what we can use in our own project
+        create a function that takes in a number representing the block and returns if that block is empty or not
+        sequential simulated annealing solution with/without guessing and checking
+        paralell simualted annealing solution with/without guessing and checking
+        
+        create a huge huge huge file of like 10, 100, 1000 9x9 boards and another file of 100 16x16 boards
+
+        * Go through all the resources, summarize them with bulletpoint notes, see what we can use in our own project
 
 For parallel input
         Each block will read the corresponding section of the input string and write to the global board in parallel.
