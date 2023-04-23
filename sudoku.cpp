@@ -35,6 +35,7 @@ string test2 = "\
     672489315\
     010326974";
 
+
 string test_board = "\
     0fb04e19a050cd00\
     0d0600b290g000a0\
@@ -216,13 +217,11 @@ class SudokuBoard{
             if (val == 0){
                 //dont add 0s to possible values
                 if (existing_val != 0){
-                    //printf("adding x: %d, y: %d, val: %d\n", x, y, val);
                     addPosValue(existing_val, x, y); //add a non-zero to pos val
                 }   
             } else{
                 if (existing_val != 0){throw;} //confirms you never change a number into another number. 
                 //You always empty the tile and then add a new number in two separate states
-                //printf("at x: %d, y: %d, removing possible val: %d\n", x, y, val);
                 removePosValue(val, x, y);
             }
 
@@ -328,7 +327,6 @@ class SudokuBoard{
                 for (int j = ystart; j < yend; j++){ 
                     if (cury == j && curx == i){continue;}                   
                     else if (val == tiles[j][i].getVal()){
-                        //printf("val %d is in block at index %d, %d\n",val, j, i);
                         return true;
                     }
                 }
@@ -373,10 +371,10 @@ class SudokuBoard{
 
         /// @brief Getter function for board access
         /// @return a copy of the board
-        vector<vector<Tile>> getBoard(){
+        /*vector<vector<Tile>> getBoard(){
             vector<vector<Tile>> board_copy = tiles;////////////////////////check if this is deep or shallow copy
             return board_copy;
-        }
+        }*/
 
         /// @brief called by solveBoardParallel (the driver), this function recurses and solves in parallel
         /// @return 0 on success, positive number on error
@@ -384,7 +382,6 @@ class SudokuBoard{
             int startx, starty, endx, endy;
             setBlockCoordinates(currRank, startx, starty, endx, endy);
 
-            printf("rank: %d, (%d, %d, %d, %d)\n", currRank, startx, starty, endx, endy );
             //test board
             int row = 0;
             int col = 0;
@@ -419,7 +416,6 @@ class SudokuBoard{
             MPI_Comm_rank(MPI_COMM_WORLD, &myrank); //this processes' individual rank
             MPI_Comm_size(MPI_COMM_WORLD, &number_of_ranks); //the total number of processes in the world
             
-            printf("I am rank %d in driver)\n", myrank);
             MPI_Barrier(MPI_COMM_WORLD);
             //go through and fill every element of the board (write solution to file) IN PARALLEL
             
@@ -563,27 +559,66 @@ class SudokuBoard{
                 //what if we guess and then we use a rule, are we guaranteed a solution?
             //have functionality for each block running this
             int numChanges = 0;
-            int tryagain = true;
-            for (int x = xstart; x < xend; x++){
-                for (int y = ystart; y < yend; y++){
+            for (int x = xstart; x <= xend; x++){
+                for (int y = ystart; y <= yend; y++){
                     if (tiles[y][x].getVal() == 0){
                         set<int>* pos_values = tiles[y][x].getPosValues();
                         if (pos_values->size() == 1){
-                            //////////////////MUST START MUTEX OR SEND MESSAGE OR SOMETHING HERE FOR PARALLEL
                             setValue(x,y,*(pos_values->begin()));
                             numChanges++;
 
                             //RESTART THE LOOP SINCE A CHANGE WAS MADE
                             x = xstart;
                             y = ystart-1;
-                            tryagain = true;
                         }
                     } 
                 }
             }
-            //printf("Made %d elimination changes\n", numChanges);
             return (numChanges>0);
         }
+
+        
+        bool ParallelEliminationRule(int xstart, int ystart, int xend, int yend){
+            //look through all of this blocks' tiles' possible_values lists. If any are of size 1, 
+            //then that must be the answer, so make the change
+                //what if we guess and then we use a rule, are we guaranteed a solution?
+            //have functionality for each block running this 
+            /*int numChanges = 0;
+
+            bool madechange = True
+
+            while (madechange){
+                madechange = false;
+                call 9 cuda kernels, one for each tile in the block, 
+                if a kernel made a change, set madechange to true and store that changed board as our board
+            }
+
+
+
+
+            for (int x = xstart; x <= xend; x++){
+                for (int y = ystart; y <= yend; y++){
+                    if (tiles[y][x].getVal() == 0){
+                        set<int>* pos_values = tiles[y][x].getPosValues();
+                        if (pos_values->size() == 1){
+                            setValue(x,y,*(pos_values->begin()));
+                            numChanges++;
+
+                            //RESTART THE LOOP SINCE A CHANGE WAS MADE
+                            x = xstart;
+                            y = ystart-1;
+                        }
+                    } 
+                }
+            }*/
+            return (numChanges>0);
+        }
+
+
+
+
+
+
         
         /// @brief Attempts first to use humanistic rules to solve, and brute forces as a last resort
         /// @return 0 on success, 1 on inability to solve
@@ -684,6 +719,18 @@ class SudokuBoard{
         }
         return false;
     }
+
+    vector<pair<int, int>> getAllEmptyTiles() {
+        vector<pair<int, int>> pairs;
+        for (int x = 0; x < boardsize; x++) {
+            for (int y = 0; y < boardsize; y++) {
+                if (getValue(x,y) == 0){ //empty
+                    pairs.push_back(make_pair(x, y));
+                }
+            }
+        }
+        return pairs;
+    }
 };
 
 
@@ -712,21 +759,6 @@ SudokuBoard* generateSudokuBoard(string difficulty){
     //initialize a board to empty and add in random given numbers
     SudokuBoard* random_board = new SudokuBoard(empty_board);
 
-
-    //confirm all pos_values are empty
-    for (int i = 0; i < boardsize; i++){
-        for (int j = 0; j < boardsize; j++){
-            vector<vector<Tile>>& vector_ref = random_board->getTiles();
-
-            Tile tmp = (vector_ref)[j][i];
-            if ((*(tmp.getPosValues())).size() != (unsigned int) boardsize){
-                printSet((*(tmp.getPosValues())));
-                printf("there\n");
-                throw;
-            }
-        }
-    }
-        //ALL GOOD TIL HERE
     random_board->randomBoardSolve(); //complete the board randomly and then remove elements
 
     //current coordinate position
@@ -772,7 +804,7 @@ void runTestsSequential(int number_of_tests){
         if (board_recursive_sequential->SequentialRecursiveBacktrackSolve() == 0){
             seq_passes++;
             printf("\n********************************\nrecursive backtrack solved the board!\n********************************\n");
-            board_recursive_sequential->printBoard(); 
+            board_recursive_sequential->printBoard();
         } else {
             printf("recursive backtracking is incomplete or incorrect\n");
             board_recursive_sequential->printBoard(); 
@@ -801,6 +833,37 @@ void runTestsSequential(int number_of_tests){
     return;
 }
 
+/// @brief Match the coordinate point to the block containing it
+/// @param x 
+/// @param y 
+/// @return 
+int tileToBlock(int x, int y){
+    int blockSize = (int) sqrt(boardsize);
+    int blockX = x / blockSize;
+    int blockY = y / blockSize;
+    return blockY * blockSize + blockX + 1;
+}
+
+
+string maxString(string str1, string str2) {
+    int n = str1.size();
+    int m = str2.size();
+    int maxLen = max(n, m);
+
+    // Make both strings the same length by adding leading zeros
+    str1 = string(maxLen - n, '0') + str1;
+    str2 = string(maxLen - m, '0') + str2;
+
+    string result = "";
+
+    for (int i = 0; i < maxLen; i++) {
+        char c = max(str1[i], str2[i]);
+        result += c;
+    }
+
+    return result;
+}
+
 int main(int argc, char** argv){
     int myrank = 0;
     int number_of_ranks = 0;
@@ -813,7 +876,7 @@ int main(int argc, char** argv){
     MPI_Comm_size(MPI_COMM_WORLD, &number_of_ranks); //the total number of processes in the world
 
     if( myrank == 0 ){
-        runTestsSequential(1); 
+        //runTestsSequential(1); 
         
         /*Running 16x16 random board is super time consuming because of the time it takes to produce an evil board. 
         Sometimes it takes forever and sometimes its instant, depending on the random numbers chosen i think.
@@ -837,12 +900,12 @@ int main(int argc, char** argv){
         string boardString = myBoard->boardToString(); 
 
         //convert to char[] to send with mpi
-        char board[boardString.length() + 2];
+        char board[boardString.length() + 2]; //
         strcpy( board, boardString.c_str() );
         strcat(board, "\0");
         
-
         printf("\n\n\nCurrent Board is: %s\n\n\n", board);
+          myBoard->printBoard();     
         
         vector<bool> sendToArray(9, true); // Array of if we are sending a message to the a specific rank 0 is rank 1 etc etc.
         vector<char> sendToValues(9, '1'); // Array of what location each rank is meant to check for <===========================
@@ -851,14 +914,20 @@ int main(int argc, char** argv){
         
         int tiles_updated = 0;
         int blocks_updated = 0;
+        int count = 0;
 
-                int count = 0;
-
-        while( sudokuNotComplete && count < 1 ){
+        while( sudokuNotComplete ){
             count++;
             blocks_updated = 0;
             //Step 1: check all blocks to see if any empty spaces in blocks
-            //  -- Flag matching bools in sendToArray if there is still work to be done
+            vector<pair<int, int>> empty_tiles = myBoard->getAllEmptyTiles();
+
+            //check what block each tile is in, and set that block's index to true in sendToArray
+            /*for (unsigned int i = 0; i < empty_tiles.size(); i++){
+                pair<int, int> coord = empty_tiles[i];
+                int bnum = tileToBlock(coord.first, coord.second);
+                sendToArray[bnum] = true;
+            }*/
 
             //if all of sendToArray is false board is full so check if board is done
             //if board is done send terminate to all ranks through messages and print board
@@ -869,11 +938,18 @@ int main(int argc, char** argv){
                     char tile = sendToValues[i]; // Tile location 1-z as a char
                     char message[sudoku_size + 3] = ""; //Message to be sent to rank i + 1
 
+                    string b = myBoard->boardToString(); 
+                    
+                    char send_board[b.length() + 2]; //
+                    strcpy( send_board, b.c_str() );
+                
+
                     // Concat the String to be 'Board' + ' ' + 'Location'
                     // Note: Location is a single char 1-z
-                    strcat(message,  board );
+                    strcat(message,  send_board );
                     strcat(message, " ");
                     strncat(message, &tile, 1);
+                    strcat(message, "\0");
                     // --------------------------------------------------- //
                      //printf("\n\n\nCurrent Message to %d is: %s\n\n\n", i ,board);
 
@@ -883,32 +959,52 @@ int main(int argc, char** argv){
             }
 
             tiles_updated = 0;
+            string newBoardString = myBoard->boardToString(); 
+            
         
              for (unsigned int i = 0; i < sendToArray.size(); i++) {
                  if( sendToArray[i] ){  
                     char incoming_message[sudoku_size + 3] = "";
+                    char incoming_board[sudoku_size + 1],  incoming_tiles_updated[1];
                     MPI_Recv(&incoming_message, sudoku_size + 3, MPI_CHAR, i + 1, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-                    printf("We are rank 0 and we gor a message from rank %d saying:\n\t-> %s\n", i+1 , incoming_message );
+                    //printf("We are rank 0 and we gor a message from rank %d saying:\n\t-> %s\n", i+1 , incoming_message );
                     
+                
                     // split the message
                     // tiles_updated += count_from_msg
                     // mesh current board into main board
+                    istringstream iss(incoming_message);
+                    iss.getline(incoming_board, sudoku_size + 3 , ' ');
+                    iss.getline(incoming_tiles_updated, 2);
 
+                    int incoming_tile_updated_count = incoming_tiles_updated[0] - '0';
+                    tiles_updated += incoming_tile_updated_count;
+
+                    string boardstring(incoming_board);
+                    newBoardString = maxString(newBoardString , incoming_board); //IT IS HERE
                  }
             }
+
+            delete myBoard;
+            myBoard = new SudokuBoard(newBoardString);            
+            printf("Rank 0 Here Main Board is Currently: %s",  myBoard->boardToString().c_str()); 
     
             if( tiles_updated == 0 ){
-                //Recursive Backtracking
-            } else { 
-                // update the board
-            }
+               // WE DO COOL BACK TRACKIN SHIT HERE
+               // Make a LIST REVERT SHIT
 
-            // Recursive backtracking if updated is 0
-            
-            string boardstring(board);
-            SudokuBoard* test = new SudokuBoard(boardstring);
-            if( /*test->checkBoard() == 0 &&*/ false /* <---- tempoarary */ ){ sudokuNotComplete = false; } 
-            delete test;
+            } else { // free old memory and update the board }
+
+            int r, c;
+            if( !myBoard->findEmptyTile(r,c) ){
+                for (unsigned int i = 0; i < sendToArray.size(); i++) {
+                    MPI_Send("terminate", sudoku_size + 3, MPI_CHAR, i + 1, 0, MPI_COMM_WORLD);
+                }
+                printf("\n*******************************\nWE HAVE MADE IT\n*******************************\n\n");
+                myBoard->printBoard(); 
+                
+                sudokuNotComplete = false; 
+            }
         }
 
     //we are a child process
@@ -917,14 +1013,15 @@ int main(int argc, char** argv){
         bool keepLooping = true;
         int count = 0;
 
-        while ( keepLooping && count < 1){
+        while ( keepLooping ){
             count++;
         
             char board[sudoku_size + 1], tile[1];
             MPI_Status status;
             MPI_Recv(message, sudoku_size + 3, MPI_CHAR , MPI_ANY_SOURCE, 0, MPI_COMM_WORLD, &status);
 
-            if( message == "terminate" ){ keepLooping = false; continue; }
+            string terminationCheck(message);
+            if( terminationCheck == "terminate" ){ keepLooping = false; continue; }
               
             // Message is in the form: board + " " + tile_location
             // So we split it to get the data
@@ -951,6 +1048,12 @@ int main(int argc, char** argv){
             strncat(send_board, &change_count, 1);
             strcat( send_board, "\0");
 
+        
+
+            
+            printf("In rank %d we have a board of:\n\tMessage: %s\n", myrank, send_board);
+
+
             // -------------------------- All Code above this line ----------------------------//
             MPI_Send(send_board, sudoku_size + 3, MPI_CHAR, 0, 0, MPI_COMM_WORLD);
             delete myboard;
@@ -965,25 +1068,3 @@ int main(int argc, char** argv){
     //DRMEMORY expects 427,000 bytes reachable and valgrind expects 71,000 bytes. Dont worry :)
     return 0;
 }
-
-
-
-    /*SudokuBoard* t = new SudokuBoard(test2);
-        t->SequentialHumanisticSolve();
-        t->printBoard();
-        if (t->checkBoard() != 0){throw;}*/
-        /*
-        SudokuBoard* test = generateSudokuBoard("easy");
-        
-        printf("*******************************\nINITIAL SEQUENTIAL BOARD STATE\n*******************************\n\n");
-        test->printBoard(); 
-        
-        if (test->SequentialHumanisticSolve() == 0){
-            printf("\n*******************************\nBOARD IS SOLVED\n*******************************\n\n");
-        } else {
-            printf("board is incomplete or incorrect\n");
-        }
-        
-        test->printBoard();  
-        printf("\n*******************************\nEND OF SEQUENTIAL SOLVER\n*******************************\n\n");
-        */
