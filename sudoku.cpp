@@ -8,10 +8,10 @@
 #include <cmath>
 #include <cuda_runtime.h>
 #include <fstream>
-#include "tile.h"
-
+#include <chrono>
 #include <cstring>
 #include <sstream>
+#include "tile.h"
 using namespace std;
 
 extern void CudaThings();
@@ -88,7 +88,7 @@ string empty_board = "\
     ";
 #endif
 
-#include <chrono>
+
 
 long long getCurrentTimeMicros() {
     auto time = std::chrono::high_resolution_clock::now();
@@ -215,13 +215,21 @@ class SudokuBoard{
             return tiles;
         }
         
-        /// @brief Gets the string representation of the board
+        /// @brief Gets the string representation of the board (with letters for double digit numbers)
         /// @return s the string 
         string boardToString(){
             string s = "";
             for (int i = 0; i < boardsize; i++){
                 for (int j = 0; j < boardsize; j++){
-                    s += to_string(tiles[j][i].getVal());
+                    if (tiles[j][i].getVal() > 9){
+                        //double digit so make char
+                        char c = char((tiles[j][i].getVal() - 10) + 'a');
+                        s += c;
+                    }
+                    else{ //single digit so its a number
+                        s += to_string(tiles[j][i].getVal());
+                    }
+                    
                 }
             }
             return s;
@@ -997,16 +1005,13 @@ SudokuBoard* generateSudokuBoard(string difficulty){
         number_of_givens = 30 + (rand() % static_cast<int>(50 - 30 + 1)); //[30,50] exclusive range
     }
      
-    //printf("# of givens: %d\n", number_of_givens);
+    printf("# of givens: %d\n", number_of_givens);
 
     //initialize a board to empty and add in random given numbers
     SudokuBoard* random_board = new SudokuBoard(empty_board);
-    if (random_board->boardToString().size() != (unsigned int) sudoku_size){printf("bad empty board with len: %u\n", (unsigned int) random_board->boardToString().size());throw;}
+    //if (random_board->boardToString().size() != (unsigned int) sudoku_size){printf("bad empty board with len: %u\n", (unsigned int) random_board->boardToString().size());throw;}
     random_board->randomBoardSolve(); //complete the board randomly and then remove elements
-    if (random_board->boardToString().size() != (unsigned int) sudoku_size){printf("bad random generated board with len: %u\n", (unsigned int) random_board->boardToString().size());
-    random_board->printBoard();
-    printf("%s\n", random_board->boardToString().c_str());
-    throw;}
+    
     //current coordinate position
     int x;
     int y;
@@ -1028,8 +1033,8 @@ SudokuBoard* generateSudokuBoard(string difficulty){
     return random_board; //returns the board* for dereferencing in the future
 }
 
-void createTestBoards(int numtests, string difficulty){
-    ofstream outfile(outfilename);
+void createTestBoards(int numtests, string difficulty, string filename){
+    ofstream outfile(filename);
     if (!outfile) {
         cerr << "Error opening file!" << endl;
         return;
@@ -1037,8 +1042,9 @@ void createTestBoards(int numtests, string difficulty){
     
     for (int i = 0; i < numtests; i++) {
         SudokuBoard* tmp = generateSudokuBoard(difficulty);
+        tmp->printBoard();
         string bstring = tmp->boardToString();
-        if (bstring.size() != (unsigned int) sudoku_size){printf("bad bstring\n"); throw;}
+        //if (bstring.size() != (unsigned int) sudoku_size){printf("bad bstring\n"); throw;}
         outfile << bstring << endl;
         delete tmp;
     }
@@ -1120,7 +1126,7 @@ int ParallelDriver(){
         printf("\n*******************************\nSTART OF PARRALLEL CODE\n*******************************\n\n");
         //initialize the test board
 
-    for (size_t i = 0; i < 10; i++){
+    for (size_t i = 0; i < 1; i++){
         printf("\n*******************************\nSTART OF BOARD #%d\n*******************************\n\n", (int)i);
         SudokuBoard* myBoard = generateSudokuBoard("evil");
         string boardString = myBoard->boardToString(); 
@@ -1174,6 +1180,13 @@ int main(int argc, char** argv){
     MPI_Comm_rank(MPI_COMM_WORLD, &myrank); //this processes' individual rank
     MPI_Comm_size(MPI_COMM_WORLD, &number_of_ranks); //the total number of processes in the world
     
+    if (myrank == 0){
+        createTestBoards(100, "easy", "tests100easy256.txt");
+    }
+    MPI_Barrier(MPI_COMM_WORLD);
+    MPI_Finalize();
+    return 0;
+
     //SHELDON THE MPI PARALLEL IO WORKS!! just gotta make sure you read from the right variables at the right time cuz parallel is confusing like that
     #if 0
     // Open the input file
