@@ -1,3 +1,4 @@
 *.out
 *.o
 .vscode/settings.json
+program

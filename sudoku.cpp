@@ -1042,7 +1042,7 @@ void createTestBoards(int numtests, string difficulty, string filename){
     
     for (int i = 0; i < numtests; i++) {
         SudokuBoard* tmp = generateSudokuBoard(difficulty);
-        tmp->printBoard();
+        //tmp->printBoard();
         string bstring = tmp->boardToString();
         //if (bstring.size() != (unsigned int) sudoku_size){printf("bad bstring\n"); throw;}
         outfile << bstring << endl;
@@ -1181,7 +1181,7 @@ int main(int argc, char** argv){
     MPI_Comm_size(MPI_COMM_WORLD, &number_of_ranks); //the total number of processes in the world
     
     if (myrank == 0){
-        createTestBoards(100, "easy", "tests100easy256.txt");
+        createTestBoards(1000, "evil", "tests1000evil256.txt");
     }
     MPI_Barrier(MPI_COMM_WORLD);
     MPI_Finalize();
