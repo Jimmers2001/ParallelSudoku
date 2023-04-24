@@ -1120,8 +1120,8 @@ int ParallelDriver(){
         printf("\n*******************************\nSTART OF PARRALLEL CODE\n*******************************\n\n");
         //initialize the test board
 
-    for (size_t i = 0; i < 100; i++){
-        printf("\n*******************************\nSTART OF BOARD #%d\n*******************************\n\n", i);
+    for (size_t i = 0; i < 10; i++){
+        printf("\n*******************************\nSTART OF BOARD #%d\n*******************************\n\n", (int)i);
         SudokuBoard* myBoard = generateSudokuBoard("evil");
         string boardString = myBoard->boardToString(); 
 
@@ -1162,6 +1162,10 @@ int ParallelDriver(){
 int main(int argc, char** argv){
     int myrank = 0;
     int number_of_ranks = 0;
+    string infil = argv[1];
+    const int LINES_PER_RANK = 10;
+    const int CHARACTERS_PER_LINE = sudoku_size;
+    const int CHARACTERS_PER_RANK = boardsize;
 
     //character that represents the "{board} {#tile to solve}" which is space separated and has null terminating character
     //char board[sudoku_size] = "Hello";
@@ -1169,23 +1173,89 @@ int main(int argc, char** argv){
     MPI_Init(&argc, &argv);
     MPI_Comm_rank(MPI_COMM_WORLD, &myrank); //this processes' individual rank
     MPI_Comm_size(MPI_COMM_WORLD, &number_of_ranks); //the total number of processes in the world
-
-    if( myrank == 0 ){
-        //runTestsSequential(1); 
-        
-        /*Running 16x16 random board is super time consuming because of the time it takes to produce an evil board. 
-        Sometimes it takes forever and sometimes its instant, depending on the random numbers chosen i think.
-        I should probably exclude the board creation times when gathering real data.
-
-        Also, sequential filling of an empty board is much faster than random because it narrows down places numbers can go or something?
-
-        */
-    } 
     
-    /*---------------------------------------------------*/
-    /*              YOU THREADS SHALL NOT PASS           */
-                    MPI_Barrier(MPI_COMM_WORLD);      
-    /*---------------------------------------------------*/
+    //SHELDON THE MPI PARALLEL IO WORKS!! just gotta make sure you read from the right variables at the right time cuz parallel is confusing like that
+    #if 0
+    // Open the input file
+    ifstream input_file(infil);
+
+    // Check that the file was opened successfully
+    if (!input_file.is_open()) {
+        std::cerr << "Failed to open input file." << std::endl;
+        MPI_Abort(MPI_COMM_WORLD, 1);
+    }
+
+    // Read lines from the input file
+    string line;
+    int line_counter = -1;
+
+    /*
+        for each line in the file:
+            make a char[boardsize] for each rank
+            fill in respective spots
+            BARRIER()
+
+            gather all character arrays into one chunky char[sudoku_size] array
+
+            make a sudoku board from that char array
+
+            DO THE REST OF OUR CODE GIVEN THAT BOARD
+    */
+
+    while (getline(input_file, line) && line_counter < 2) {/////////////////remove < 10
+        line_counter++; //increment from -1 to 0 to start
+        //printf("On line: %d\t", line_counter);
+
+        // Allocate memory for the character array
+        char char_array[boardsize]; //no extra for null terminating yet because we will gather
+
+        if (myrank != 0){
+            // Compute the starting and ending character indices for this rank
+            int start_char_index = (myrank - 1) * CHARACTERS_PER_RANK;
+            int end_char_index = myrank * CHARACTERS_PER_RANK; ///////////EXCLUSIVE SO MUST DO < NOT <=
+            
+            //mpi doesnt have shared memory, so i have to make a bunch of char arrays 
+            //that are small and then gather them together into one bigger rank
+
+            // Read the characters for this rank from the current line
+            printf("i am rank %d and I am reading: ", myrank);
+            for (int i = 0; i < CHARACTERS_PER_RANK; i++) {
+                int char_index = start_char_index + i;
+                if (char_index <= end_char_index) {
+                    char_array[i] = line[char_index];
+                    printf("%c", char_array[i]);
+                }
+            }
+            printf("\n");
+        }
+        MPI_Barrier(MPI_COMM_WORLD);
+        //ALL RANKS RUN THIS PORTION:
+        // Gather the character arrays from all the ranks to the root rank
+        char gathered_char_array[CHARACTERS_PER_LINE+1]; //+1 for null terminating character
+        MPI_Gather(&char_array[0], CHARACTERS_PER_RANK, MPI_CHAR,
+        &gathered_char_array[0], CHARACTERS_PER_RANK, MPI_CHAR,
+        0, MPI_COMM_WORLD);
+
+        // Print the gathered character array from the root rank
+        MPI_Barrier(MPI_COMM_WORLD);
+        printf("The entire line says: ");
+        if (myrank == 0) {
+            for (int i = 0; i < CHARACTERS_PER_LINE; i++) {
+                cout << gathered_char_array[i];
+            }
+            cout << "\n" << endl;
+        }
+        MPI_Barrier(MPI_COMM_WORLD);
+    }
+    MPI_Barrier(MPI_COMM_WORLD);
+    // Close the input file and finalize MPI
+    input_file.close();
+
+    MPI_Finalize();  return 0; //TEMPORARY FOR OUTPUT CHECKING////////////////
+    #endif
+    
+
+
     CudaThings();
      // check if CUDA is available
 /*
