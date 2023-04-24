@@ -1,5 +1,3 @@
-
 *.out
-*.out
-sudoku.out
+*.o
 .vscode/settings.json
