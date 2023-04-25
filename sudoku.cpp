@@ -1179,16 +1179,9 @@ int main(int argc, char** argv){
     MPI_Init(&argc, &argv);
     MPI_Comm_rank(MPI_COMM_WORLD, &myrank); //this processes' individual rank
     MPI_Comm_size(MPI_COMM_WORLD, &number_of_ranks); //the total number of processes in the world
-    
-    if (myrank == 0){
-        createTestBoards(1000, "evil", "tests1000evil256.txt");
-    }
-    MPI_Barrier(MPI_COMM_WORLD);
-    MPI_Finalize();
-    return 0;
 
     //SHELDON THE MPI PARALLEL IO WORKS!! just gotta make sure you read from the right variables at the right time cuz parallel is confusing like that
-    #if 0
+    #if 1
     // Open the input file
     ifstream input_file(infil);
 
@@ -1215,7 +1208,7 @@ int main(int argc, char** argv){
             DO THE REST OF OUR CODE GIVEN THAT BOARD
     */
 
-    while (getline(input_file, line) && line_counter < 2) {/////////////////remove < 10
+    while (getline(input_file, line) && line_counter < 0) {/////////////////remove < 10
         line_counter++; //increment from -1 to 0 to start
         //printf("On line: %d\t", line_counter);
 
@@ -1231,40 +1224,55 @@ int main(int argc, char** argv){
             //that are small and then gather them together into one bigger rank
 
             // Read the characters for this rank from the current line
-            printf("i am rank %d and I am reading: ", myrank);
+            //printf("i am rank %d and I am reading: ", myrank);
             for (int i = 0; i < CHARACTERS_PER_RANK; i++) {
                 int char_index = start_char_index + i;
-                if (char_index <= end_char_index) {
+                if (char_index < end_char_index) {
                     char_array[i] = line[char_index];
-                    printf("%c", char_array[i]);
+                    //printf("%c", char_array[i]);
                 }
             }
-            printf("\n");
+            //printf("\n");
         }
         MPI_Barrier(MPI_COMM_WORLD);
         //ALL RANKS RUN THIS PORTION:
         // Gather the character arrays from all the ranks to the root rank
         char gathered_char_array[CHARACTERS_PER_LINE+1]; //+1 for null terminating character
-        MPI_Gather(&char_array[0], CHARACTERS_PER_RANK, MPI_CHAR,
-        &gathered_char_array[0], CHARACTERS_PER_RANK, MPI_CHAR,
+        MPI_Gather(char_array, CHARACTERS_PER_RANK, MPI_CHAR,
+        gathered_char_array, CHARACTERS_PER_RANK, MPI_CHAR,
         0, MPI_COMM_WORLD);
 
         // Print the gathered character array from the root rank
         MPI_Barrier(MPI_COMM_WORLD);
-        printf("The entire line says: ");
+        
         if (myrank == 0) {
+            printf("The entire line says: \n");
             for (int i = 0; i < CHARACTERS_PER_LINE; i++) {
-                cout << gathered_char_array[i];
+                cout << gathered_char_array[i+9]; //NEEDS THE +9
             }
             cout << "\n" << endl;
         }
         MPI_Barrier(MPI_COMM_WORLD);
+    
+        //PUT REST OF CODE HERE
+        
+        if (myrank == 0){
+
+            string s(gathered_char_array);
+            cout <<" what even " << s << endl;
+
+
+            SudokuBoard* b = new SudokuBoard(string(gathered_char_array));
+
+
+        }
+
+
+    
     }
     MPI_Barrier(MPI_COMM_WORLD);
     // Close the input file and finalize MPI
     input_file.close();
-
-    MPI_Finalize();  return 0; //TEMPORARY FOR OUTPUT CHECKING////////////////
     #endif
     
 
