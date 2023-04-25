@@ -742,7 +742,7 @@ class SudokuBoard{
 
             //elimination
             eliminationRule(xstart, ystart, xend, yend);
-
+            ///////////////////////////////////////////////////////////////////////needs to do backtracking and try elim again
             return checkBoard();
         }
 
@@ -1133,13 +1133,7 @@ int ParallelDriver(string input_board){
         strcat(board, "\0");  
         
         int value = myBoard->ParallelHumanisticSolve(boardString);
-        if(value == 1){
-                printf("\nWe have not solved the board!\n");
-                throw;
-        } else {
-            printf("\nWe have solved the board!\n");
-           // myBoard->printBoard();
-        }
+
     
         vector<bool> rankCount(9, true); // Array of if we are sending a message to the a specific rank 0 is rank 1 etc etc.
         
@@ -1151,7 +1145,7 @@ int ParallelDriver(string input_board){
 
         
         delete myBoard;
-        return 1;
+        return value;
 }
 
 
@@ -1163,6 +1157,13 @@ int main(int argc, char** argv){
     const int LINES_PER_RANK = 10;
     const int CHARACTERS_PER_LINE = sudoku_size;
     const int CHARACTERS_PER_RANK = boardsize;
+
+    
+    long long seq_brute_force_total_time  =  0.0;
+    long long rand_brute_force_total_time  = 0.0;
+    long long seq_humanistic_total_time  = 0.0;
+    long long parallel_humanistic_total_time  =  0.0;
+               
 
     //character that represents the "{board} {#tile to solve}" which is space separated and has null terminating character
     //char board[sudoku_size] = "Hello";
@@ -1236,8 +1237,9 @@ int main(int argc, char** argv){
 
         SudokuBoard* seq_brute_force;
         SudokuBoard* rand_brute_force;
-        SudokuBoard* humanistic;
-               
+        SudokuBoard* seq_humanistic;
+        SudokuBoard* parallel_humanistic;
+
         if (myrank == 0) {
             //create the string in this weird way
             string s = "";
@@ -1249,35 +1251,84 @@ int main(int argc, char** argv){
   
             seq_brute_force = new SudokuBoard(s);
             rand_brute_force = new SudokuBoard(s);
-            humanistic = new SudokuBoard(s);
+            seq_humanistic = new SudokuBoard(s);
+            parallel_humanistic = new SudokuBoard(s);
         }
     
         //START CLOCK HERE//////////////////////////////////////////////////
         if( myrank == 0 ){ 
-            //sequential brute force code with board goes here
-            //SequentialRecursiveBacktrackSolve();
+            long long x = getCurrentTimeMicros();
+            auto start = std::chrono::high_resolution_clock::now();
+            //sequential brute force
+            if (seq_brute_force->SequentialRecursiveBacktrackSolve() == 0){
+                //success
+                //printf("\nWe have solved the board for sequential brute force!\n");
+            } else{
+                //failure
+                printf("\nWe have not solved the board for sequential brute force\n");
+                throw;
+            }
+            auto end = std::chrono::high_resolution_clock::now();
+            std::chrono::duration<double, std::milli> elapsed = end - start;
+
+            seq_brute_force_total_time += elapsed.count();
+            
         }
         // stop clock here
 
         //START CLOCK HERE//////////////////////////////////////////////////
         if( myrank == 0 ){ 
-            //random brute force code with board goes here
+            long long x = getCurrentTimeMicros();
+            //random brute force
+            if (rand_brute_force->randomBoardSolve() == 0){
+                //success
+                //printf("\nWe have solved the board for random brute force!\n");
+            } else{
+                //failure
+                printf("\nWe have not solved the board for random brute force\n");
+                throw;
+            }
             //randomBoardSolve();
+            x = getCurrentTimeMicros() - x;
+            rand_brute_force_total_time += x;
         }
         // stop clock here
 
 
         //START CLOCK HERE//////////////////////////////////////////////////
+        //this code doesnt work because humanistic doesnt have backtracking as last resort implemented so it doesnt guarantee a solution
         if( myrank == 0 ){ 
-            //sequential humanistic code with board goes here
-            //SequentialHumanisticSolve()
+           /* long long x = getCurrentTimeMicros();
+            //sequential humanistic code 
+            if (seq_humanistic->SequentialHumanisticSolve() == 0){
+                //success
+                //printf("\nWe have solved the board for sequential humanistic solve!\n");
+            } else{
+                //failure
+                printf("\nWe have not solved the board for sequential humanistic solve!\n");
+                throw;
+            }
+            x = getCurrentTimeMicros() - x;
+            seq_humanistic_total_time += x;*/
         }
         // stop clock here
 
         //START CLOCK HERE//////////////////////////////////////////////////
         //parallel humanistic code
         if( myrank == 0 ){ // My main man
-            ParallelDriver(humanistic->boardToString());
+            long long x = getCurrentTimeMicros();
+            
+            if (ParallelDriver(parallel_humanistic->boardToString()) == 0){
+                //success
+                //printf("\nWe have solved the board for parallel humanistic solve!\n");
+            } else{
+                //failure
+                printf("\nWe have not solved the board for parallel humanistic solve!\n");
+                throw;
+            }
+
+            x = getCurrentTimeMicros() - x;
+            parallel_humanistic_total_time += x;
         } else { //we are a child process
             char message[sudoku_size + 3] = "";
             bool keepLooping = true;
@@ -1315,6 +1366,7 @@ int main(int argc, char** argv){
                 int startx, starty, endx, endy;
                 setBlockCoordinates(myrank, startx, starty, endx, endy);
                 int changes = myboard->eliminationRule(startx, starty, endx, endy);
+                
 
 
                 //convert to char array
@@ -1336,8 +1388,16 @@ int main(int argc, char** argv){
         }
         //STOP CLOCK HERE//////////////////////////////////////////////////
 
-        if (myrank == 0){delete seq_brute_force; delete rand_brute_force; delete humanistic;}
+        if (myrank == 0){delete seq_brute_force; delete rand_brute_force; delete seq_humanistic; delete parallel_humanistic;}
     }
+
+    if (myrank == 0){
+        std::cout << " _______ Algorithm has an average time to solve of:" << seq_brute_force_total_time/1000.0 << "ms.\n";
+        std::cout << " _______ Algorithm has an average time to solve of:" << rand_brute_force_total_time/1000.0 << "ms.\n";
+        std::cout << " _______ Algorithm has an average time to solve of:" << seq_humanistic_total_time/1000.0 << "ms.\n"; 
+        std::cout << " _______ Algorithm has an average time to solve of:" << parallel_humanistic_total_time/1000.0 << "ms.\n";
+    }
+
 
     MPI_Barrier(MPI_COMM_WORLD);
     // Close the input file and finalize MPI
