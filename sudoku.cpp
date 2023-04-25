@@ -778,7 +778,7 @@ class SudokuBoard{
     /// @brief Randomly fills up a board
     /// @return 0 on success, 1 on inability to solve
     int randomBoardSolve(){
-        if (tiles.size()*tiles.size() != (unsigned int) sudoku_size){printf("tiles has len: %d\n", (int) (tiles.size()*tiles.size())); printBoard(); throw;}
+        //if (tiles.size()*tiles.size() != (unsigned int) sudoku_size){printf("tiles has len: %d\n", (int) (tiles.size()*tiles.size())); printBoard(); throw;}
         //HOW IS IT POSSIBLE THAT THE LENGTH OF TILES IS CHANGING FROM 256 TO 368 FOR A 16X16 BOARD
         //else{printf("tiles is good with length: %u\n", (unsigned int) tiles.size()*tiles.size());}
         int y = 0;
@@ -1122,45 +1122,36 @@ __global__ void cuda_kernel() {
 
 
 
-int ParallelDriver(){
-        printf("\n*******************************\nSTART OF PARRALLEL CODE\n*******************************\n\n");
-        //initialize the test board
-
-    for (size_t i = 0; i < 1; i++){
-        printf("\n*******************************\nSTART OF BOARD #%d\n*******************************\n\n", (int)i);
-        SudokuBoard* myBoard = generateSudokuBoard("evil");
+int ParallelDriver(string input_board){
+        //initialize the board
+        SudokuBoard* myBoard = new SudokuBoard(input_board);
         string boardString = myBoard->boardToString(); 
 
         //convert to char[] to send with mpi
         char board[boardString.length() + 2];
         strcpy( board, boardString.c_str() );
-        strcat(board, "\0");
+        strcat(board, "\0");  
         
-        printf("\n\n\nCurrent Board is: %s\n\n\n", board);
-          myBoard->printBoard();     
-        
-  
-
-
         int value = myBoard->ParallelHumanisticSolve(boardString);
         if(value == 1){
-            printf("\n*******************************\nWE FAILED TO SOLVE IT\n*******************************\n\n");
-            myBoard->printBoard();   
+                printf("\nWe have not solved the board!\n");
+                throw;
         } else {
-            printf("\n*******************************\nWE SOLVED IT\n*******************************\n\n");
-            myBoard->printBoard();   
+            printf("\nWe have solved the board!\n");
+           // myBoard->printBoard();
         }
-    }
     
-    vector<bool> rankCount(9, true); // Array of if we are sending a message to the a specific rank 0 is rank 1 etc etc.
-     
-    
-    for (unsigned int i = 0; i < rankCount.size(); i++) {
-        const char* message = "terminate";
-        MPI_Send(const_cast<char*>(message), sudoku_size + 3, MPI_CHAR, i + 1, 0, MPI_COMM_WORLD);
-    }
-  
-    return 1;
+        vector<bool> rankCount(9, true); // Array of if we are sending a message to the a specific rank 0 is rank 1 etc etc.
+        
+        for (unsigned int i = 0; i < rankCount.size(); i++) {
+            const char* message = "terminate";
+            MPI_Send(const_cast<char*>(message), sudoku_size + 3, MPI_CHAR, i + 1, 0, MPI_COMM_WORLD);
+        }
+
+
+        
+        delete myBoard;
+        return 1;
 }
 
 
@@ -1180,8 +1171,6 @@ int main(int argc, char** argv){
     MPI_Comm_rank(MPI_COMM_WORLD, &myrank); //this processes' individual rank
     MPI_Comm_size(MPI_COMM_WORLD, &number_of_ranks); //the total number of processes in the world
 
-    //SHELDON THE MPI PARALLEL IO WORKS!! just gotta make sure you read from the right variables at the right time cuz parallel is confusing like that
-    #if 1
     // Open the input file
     ifstream input_file(infil);
 
@@ -1208,7 +1197,7 @@ int main(int argc, char** argv){
             DO THE REST OF OUR CODE GIVEN THAT BOARD
     */
 
-    while (getline(input_file, line) && line_counter < 0) {/////////////////remove < 10
+    while (getline(input_file, line) ) {
         line_counter++; //increment from -1 to 0 to start
         //printf("On line: %d\t", line_counter);
 
@@ -1244,118 +1233,115 @@ int main(int argc, char** argv){
 
         // Print the gathered character array from the root rank
         MPI_Barrier(MPI_COMM_WORLD);
-        
+
+        SudokuBoard* seq_brute_force;
+        SudokuBoard* rand_brute_force;
+        SudokuBoard* humanistic;
+               
         if (myrank == 0) {
-            printf("The entire line says: \n");
+            //create the string in this weird way
+            string s = "";
+            //printf("The entire line says: \n");
             for (int i = 0; i < CHARACTERS_PER_LINE; i++) {
-                cout << gathered_char_array[i+9]; //NEEDS THE +9
+                //cout << gathered_char_array[i+9]; //NEEDS THE +9
+                s.push_back(gathered_char_array[i+9]);
             }
-            cout << "\n" << endl;
+  
+            seq_brute_force = new SudokuBoard(s);
+            rand_brute_force = new SudokuBoard(s);
+            humanistic = new SudokuBoard(s);
         }
-        MPI_Barrier(MPI_COMM_WORLD);
     
-        //PUT REST OF CODE HERE
-        
-        if (myrank == 0){
-
-            string s(gathered_char_array);
-            cout <<" what even " << s << endl;
-
-
-            SudokuBoard* b = new SudokuBoard(string(gathered_char_array));
-
-
+        //START CLOCK HERE//////////////////////////////////////////////////
+        if( myrank == 0 ){ 
+            //sequential brute force code with board goes here
+            //SequentialRecursiveBacktrackSolve();
         }
+        // stop clock here
+
+        //START CLOCK HERE//////////////////////////////////////////////////
+        if( myrank == 0 ){ 
+            //random brute force code with board goes here
+            //randomBoardSolve();
+        }
+        // stop clock here
+
+
+        //START CLOCK HERE//////////////////////////////////////////////////
+        if( myrank == 0 ){ 
+            //sequential humanistic code with board goes here
+            //SequentialHumanisticSolve()
+        }
+        // stop clock here
+
+        //START CLOCK HERE//////////////////////////////////////////////////
+        //parallel humanistic code
+        if( myrank == 0 ){ // My main man
+            ParallelDriver(humanistic->boardToString());
+        } else { //we are a child process
+            char message[sudoku_size + 3] = "";
+            bool keepLooping = true;
+            int count = 0;
+
+            while ( keepLooping ){
+                count++;
+            
+                char board[sudoku_size + 1], tile[1];
+                MPI_Status status;
+                MPI_Recv(message, sudoku_size + 3, MPI_CHAR , MPI_ANY_SOURCE, 0, MPI_COMM_WORLD, &status);
+
+                string terminationCheck(message);
+                if( terminationCheck == "terminate" ){ keepLooping = false; continue; }
+                
+                // Message is in the form: board + " " + tile_location
+                // So we split it to get the data
+                istringstream iss(message);
+                iss.getline(board, sudoku_size + 1 , ' ');
+                iss.getline(tile, 2);
+                // ------------------------- DONT TOUCH ABOVE THIS LINE -------------------------- //
+
+                string boardstring(board);
+                SudokuBoard* myboard = new SudokuBoard(boardstring);
+
+
+                /*  CUDA HERE */
+                // launch the CUDA kernel using the CUDA runtime API
+                
+                //cuda_kernel<<<1, NUM_THREADS>>>();
 
 
     
+                // Elim Goes here
+                int startx, starty, endx, endy;
+                setBlockCoordinates(myrank, startx, starty, endx, endy);
+                int changes = myboard->eliminationRule(startx, starty, endx, endy);
+
+
+                //convert to char array
+                char send_board[boardstring.length() + 3];
+                char change_count = changes + '0';
+
+                strcpy( send_board, myboard->boardToString().c_str() );
+                strcat( send_board, " ");
+                strncat(send_board, &change_count, 1);
+                strcat( send_board, "\0");
+
+                //printf("In rank %d we have a board of:\n\tMessage: %s\n", myrank, send_board);
+
+
+                // -------------------------- All Code above this line ----------------------------//
+                MPI_Send(send_board, sudoku_size + 3, MPI_CHAR, 0, 0, MPI_COMM_WORLD);
+                delete myboard;
+            }
+        }
+        //STOP CLOCK HERE//////////////////////////////////////////////////
+
+        if (myrank == 0){delete seq_brute_force; delete rand_brute_force; delete humanistic;}
     }
+
     MPI_Barrier(MPI_COMM_WORLD);
     // Close the input file and finalize MPI
     input_file.close();
-    #endif
-    
-
-
-    CudaThings();
-     // check if CUDA is available
-/*
-  int cuda_device_count;
-  cudaGetDeviceCount(&cuda_device_count);
-  if (cuda_device_count < 1) {
-    fprintf(stderr, "CUDA device not found.\n");
-    exit(1);
-  }
-
-  // select a CUDA device to use
-  cudaSetDevice(myrank % cuda_device_count);
-*/
-#if 1
-    if( myrank == 0 ){ // My main man
-
-        ParallelDriver();
-
-    //we are a child process
-    } else {
-        char message[sudoku_size + 3] = "";
-        bool keepLooping = true;
-        int count = 0;
-
-        while ( keepLooping ){
-            count++;
-        
-            char board[sudoku_size + 1], tile[1];
-            MPI_Status status;
-            MPI_Recv(message, sudoku_size + 3, MPI_CHAR , MPI_ANY_SOURCE, 0, MPI_COMM_WORLD, &status);
-
-            string terminationCheck(message);
-            if( terminationCheck == "terminate" ){ keepLooping = false; continue; }
-              
-            // Message is in the form: board + " " + tile_location
-            // So we split it to get the data
-            istringstream iss(message);
-            iss.getline(board, sudoku_size + 1 , ' ');
-            iss.getline(tile, 2);
-            // ------------------------- DONT TOUCH ABOVE THIS LINE -------------------------- //
-
-            string boardstring(board);
-            SudokuBoard* myboard = new SudokuBoard(boardstring);
-
-
-            /*  CUDA HERE */
-            // launch the CUDA kernel using the CUDA runtime API
-            
-            //cuda_kernel<<<1, NUM_THREADS>>>();
-
-
-  
-            // Elim Goes here
-            int startx, starty, endx, endy;
-            setBlockCoordinates(myrank, startx, starty, endx, endy);
-            int changes = myboard->eliminationRule(startx, starty, endx, endy);
-
-
-            //convert to char array
-            char send_board[boardstring.length() + 3];
-            char change_count = changes + '0';
-
-            strcpy( send_board, myboard->boardToString().c_str() );
-            strcat( send_board, " ");
-            strncat(send_board, &change_count, 1);
-            strcat( send_board, "\0");
-
-            //printf("In rank %d we have a board of:\n\tMessage: %s\n", myrank, send_board);
-
-
-            // -------------------------- All Code above this line ----------------------------//
-            MPI_Send(send_board, sudoku_size + 3, MPI_CHAR, 0, 0, MPI_COMM_WORLD);
-            delete myboard;
-        }
-    }
-#endif
-
-
-    MPI_Barrier(MPI_COMM_WORLD);
     MPI_Finalize(); //mpi causes false positives for memory leaks. 
     //DRMEMORY expects 427,000 bytes reachable and valgrind expects 71,000 bytes. Dont worry :)
     return 0;
