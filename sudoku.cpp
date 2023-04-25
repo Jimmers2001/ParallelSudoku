@@ -21,7 +21,6 @@ extern void CudaThings();
 // JIMMOTHY TILES[Y][X]
 
 int EMPTY = 0;
-string outfilename = "sample_tests.txt";
 
 //define some board examples
 string test2 = "\
@@ -1045,7 +1044,7 @@ void createTestBoards(int numtests, string difficulty, string filename){
         //tmp->printBoard();
         string bstring = tmp->boardToString();
         //if (bstring.size() != (unsigned int) sudoku_size){printf("bad bstring\n"); throw;}
-        outfile << bstring << endl;
+        //outfile << bstring << endl;
         delete tmp;
     }
     
@@ -1154,10 +1153,12 @@ int main(int argc, char** argv){
     int myrank = 0;
     int number_of_ranks = 0;
     string infil = argv[1];
+    double ntests = atof(argv[2]);
+    
     const int LINES_PER_RANK = 10;
     const int CHARACTERS_PER_LINE = sudoku_size;
     const int CHARACTERS_PER_RANK = boardsize;
-    double ntests = 10000.0;
+    
     
     long long seq_brute_force_total_time  =  0.0;
     long long rand_brute_force_total_time  = 0.0;
@@ -1180,6 +1181,9 @@ int main(int argc, char** argv){
         std::cerr << "Failed to open input file." << std::endl;
         MPI_Abort(MPI_COMM_WORLD, 1);
     }
+
+    string complete_results = ""; //since there are multiple ranks, i cant open 10 different outfiles or errors will occur. add everything to a string and then write once at the end
+
 
     // Read lines from the input file
     string line;
@@ -1283,7 +1287,7 @@ int main(int argc, char** argv){
             }
         }
 
-        if (myrank == 0){delete seq_brute_force; delete rand_brute_force; delete seq_humanistic; delete parallel_humanistic;}
+        if (myrank == 0){delete seq_brute_force;}
 
     }
     auto end = std::chrono::high_resolution_clock::now();
@@ -1291,7 +1295,7 @@ int main(int argc, char** argv){
     seq_brute_force_total_time = elapsed.count();
 
     if (myrank == 0){
-        std::cout << "\nSEQUENTIAL BRUTE FORCE Algorithm has an average time to solve of: " <<   seq_brute_force_total_time/ntests << "ms.\n";
+        complete_results += "\nSEQUENTIAL BRUTE FORCE Algorithm has an average time to solve of: " + to_string(seq_brute_force_total_time/ntests) + "ms and a total time of: " + to_string(seq_brute_force_total_time) + "ms\n";
     }
     /*****************************END OF SEQUENTIAL BRUTE FORCE*******************************************/
 
@@ -1391,7 +1395,7 @@ int main(int argc, char** argv){
             rand_brute_force_total_time += x;
         }
 
-         if (myrank == 0){delete seq_brute_force; delete rand_brute_force; delete seq_humanistic; delete parallel_humanistic;}
+         if (myrank == 0){delete rand_brute_force;}
         
     }
 
@@ -1401,7 +1405,7 @@ int main(int argc, char** argv){
     rand_brute_force_total_time = elapsed.count();
 
     if (myrank == 0){
-        std::cout << "\nRANDOM BRUTE FORCE Algorithm has an average time to solve of: " <<  rand_brute_force_total_time/ntests << "ms.\n";
+        complete_results += "\nRANDOM BRUTE FORCE Algorithm has an average time to solve of: " + to_string(rand_brute_force_total_time/ntests) + "ms and a total time of: " + to_string(rand_brute_force_total_time) + "ms\n";
     }
     
     /*****************************END OF RANDOM BRUTE FORCE*******************************************/
@@ -1559,7 +1563,7 @@ int main(int argc, char** argv){
         }
         //STOP CLOCK HERE//////////////////////////////////////////////////
 
-        if (myrank == 0){delete seq_brute_force; delete rand_brute_force; delete seq_humanistic; delete parallel_humanistic;}
+        if (myrank == 0){delete parallel_humanistic;}
     }
 
     end = std::chrono::high_resolution_clock::now();
@@ -1568,7 +1572,7 @@ int main(int argc, char** argv){
 
     
     if (myrank == 0){
-        std::cout << "\n PARALLEL HUMANISTIC Algorithm has an average time to solve of: " <<   parallel_humanistic_total_time/ntests << "ms.\n";
+        complete_results += "\nPARALLEL HUMANISTIC Algorithm has an average time to solve of: " + to_string(parallel_humanistic_total_time/ntests) + "ms and a total time of: " + to_string(parallel_humanistic_total_time) + "ms\n";
     }
         
     /*****************************END OF PARALLEL HUMANISTIC*******************************************/
@@ -1783,6 +1787,17 @@ int main(int argc, char** argv){
     MPI_Barrier(MPI_COMM_WORLD);
     // Close the input file and finalize MPI
     input_file.close();
+    
+    if (myrank == 0){
+        string outfilename = "results_";
+        outfilename.append(argv[1]);
+        replace(outfilename.begin(), outfilename.end(), '/', '_'); //replace all / with _
+        
+        ofstream output_file(outfilename);
+        output_file << complete_results << "\n";
+        output_file.close();
+    }
+
     MPI_Finalize(); //mpi causes false positives for memory leaks. 
     //DRMEMORY expects 427,000 bytes reachable and valgrind expects 71,000 bytes. Dont worry :)
     return 0;

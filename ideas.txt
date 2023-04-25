@@ -15,6 +15,14 @@ ALGORITHM:
         using SIMULATED ANNEALING, start guessing very randomly (aka like 9 guesses) and as the problem gets smaller, guess more predictively (aka like only 3 guesses)
 
 TODO:
+
+    run on supercomputer
+
+    run tests with higher mpi rank counts (should be slower because they arent used) but the paper wants them anyway
+
+
+
+
     PARALLEL IO
 
         create a function that takes in a number representing the block and returns if that block is empty or not

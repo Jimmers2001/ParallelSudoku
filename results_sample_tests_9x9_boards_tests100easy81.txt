@@ -1,0 +1,7 @@
+
+SEQUENTIAL BRUTE FORCE Algorithm has an average time to solve of: 153.120000ms and a total time of: 15312ms
+
+RANDOM BRUTE FORCE Algorithm has an average time to solve of: 196.400000ms and a total time of: 19640ms
+
+PARALLEL HUMANISTIC Algorithm has an average time to solve of: 241.210000ms and a total time of: 24121ms
+
