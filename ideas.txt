@@ -21,8 +21,6 @@ TODO:
         sequential simulated annealing solution with/without guessing and checking
         paralell simualted annealing solution with/without guessing and checking
         
-        create a huge huge huge file of like 10, 100, 1000 9x9 boards and another file of 100 16x16 boards
-
         * Go through all the resources, summarize them with bulletpoint notes, see what we can use in our own project
 
 For parallel input
