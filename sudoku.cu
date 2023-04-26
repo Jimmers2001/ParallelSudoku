@@ -15,14 +15,16 @@ __global__ void __multiply__ (){
 
 
      
-extern "C++"  void CudaThings(char *sudoku_str){
+extern "C++"  void CudaElimination(char *sudoku_str){
   int i, j, k, l, num;
   int sudoku_matrix[9][9];
   char temp[2];
   char *ptr;
   int updated = 0;
 
-  // Convert string representation to matrix representation
+  ///////////////////////////////////////////////////////////////
+  //                    Making String a Matrix                //
+  //////////////////////////////////////////////////////////////
   ptr = sudoku_str;
   for (i = 0; i < 9; i++) {
       for (j = 0; j < 9; j++) {
@@ -31,7 +33,9 @@ extern "C++"  void CudaThings(char *sudoku_str){
       }
   }
   
-  // Perform elimination
+  ///////////////////////////////////////////////////////////////
+  //                           ELIM BELOW                     //
+  //////////////////////////////////////////////////////////////
   char *value = sudoku_str;
   for (i = 0; i < 9; i++) {
       for (j = 0; j < 9; j++) {
@@ -39,45 +43,45 @@ extern "C++"  void CudaThings(char *sudoku_str){
               continue;
           }
               
-          int possible_values[9] = {1, 2, 3, 4, 5, 6, 7, 8, 9};
-          int num_possible_values = 9;
+          int possible_numbers[9] = {1, 2, 3, 4, 5, 6, 7, 8, 9};
+          int num_possible_numbers = 9;
           
-          // Check row
+          
           for (k = 0; k < 9; k++) {
               num = sudoku_matrix[i][k];
               if (num != 0) {
-                  for (l = 0; l < num_possible_values; l++) {
-                      if (possible_values[l] == num) {
-                          possible_values[l] = possible_values[--num_possible_values];
+                  for (l = 0; l < num_possible_numbers; l++) {
+                      if (possible_numbers[l] == num) {
+                          possible_numbers[l] = possible_numbers[--num_possible_numbers];
                           break;
                       }
                   }
               }
           }
           
-          // Check column
+
           for (k = 0; k < 9; k++) {
               num = sudoku_matrix[k][j];
               if (num != 0) {
-                  for (l = 0; l < num_possible_values; l++) {
-                      if (possible_values[l] == num) {
-                          possible_values[l] = possible_values[--num_possible_values];
+                  for (l = 0; l < num_possible_numbers; l++) {
+                      if (possible_numbers[l] == num) {
+                          possible_numbers[l] = possible_numbers[--num_possible_numbers];
                           break;
                       }
                   }
               }
           }
           
-          // Check 3x3 square
-          int square_i = (i / 3) * 3;
-          int square_j = (j / 3) * 3;
-          for (k = square_i; k < square_i + 3; k++) {
-              for (l = square_j; l < square_j + 3; l++) {
+          // Check 3x3 block
+          int block_i = (i / 3) * 3;
+          int block_j = (j / 3) * 3;
+          for (k = block_i; k < block_i + 3; k++) {
+              for (l = block_j; l < block_j + 3; l++) {
                   num = sudoku_matrix[k][l];
                   if (num != 0) {
-                      for (int m = 0; m < num_possible_values; m++) {
-                          if (possible_values[m] == num) {
-                              possible_values[m] = possible_values[--num_possible_values];
+                      for (int m = 0; m < num_possible_numbers; m++) {
+                          if (possible_numbers[m] == num) {
+                              possible_numbers[m] = possible_numbers[--num_possible_numbers];
                               break;
                           }
                       }
@@ -86,8 +90,8 @@ extern "C++"  void CudaThings(char *sudoku_str){
           }
           
           // If only one possible value, fill cell
-          if (num_possible_values == 1) {
-              sudoku_matrix[i][j] = possible_values[0];
+          if (num_possible_numbers == 1) {
+              sudoku_matrix[i][j] = possible_numbers[0];
               updated = 1;
               break;
           }
@@ -97,8 +101,9 @@ extern "C++"  void CudaThings(char *sudoku_str){
       }
   }
   value++;
-  
-  // Convert matrix representation back to string representation
+ /////////////////////////////////////////////////// 
+  //  CONVERT BACK TO STRING TO SEND TO MAIN //
+///////////////////////////////////////////////////
   ptr = sudoku_str;
   for (i = 0; i < 9; i++) {
       for (j = 0; j < 9; j++) {
@@ -107,5 +112,6 @@ extern "C++"  void CudaThings(char *sudoku_str){
       }
   }
   
+  //set to global shared mem
   value = sudoku_str;
 }
