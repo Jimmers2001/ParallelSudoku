@@ -1,18 +1,11 @@
 #!/bin/bash
-
 #9x9 boards
 make FILE_NAME="sample_tests/9x9_boards/tests100easy81.txt" NUM_TESTS="100"
-sleep 1m
 make FILE_NAME="sample_tests/9x9_boards/tests100evil81.txt" NUM_TESTS="100"
-sleep 1m
 make FILE_NAME="sample_tests/9x9_boards/tests1000easy81.txt" NUM_TESTS="1000"
-sleep 1m
 make FILE_NAME="sample_tests/9x9_boards/tests1000evil81.txt" NUM_TESTS="1000"
-sleep 1m
 make FILE_NAME="sample_tests/9x9_boards/tests10000easy81.txt" NUM_TESTS="10000"
-sleep 1m
 make FILE_NAME="sample_tests/9x9_boards/tests10000evil81.txt" NUM_TESTS="10000"
-sleep 1m
 
 #16x16 boards
 #make FILE_NAME="sample_tests/16x16_boards/tests100easy256.txt" NUM_TESTS="100"

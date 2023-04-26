@@ -749,8 +749,7 @@ class SudokuBoard{
         /// @return 0 on success, 1 on inability to solve, tiles will be filled correctly on success
         int SequentialRecursiveBacktrackSolve(){
             //test board
-            int row = 0;
-            int col = 0;
+            int row = 0; int col = 0;
             if (!findEmptyTile(row, col)){return 0;}
             
             //try to fill the empty element
@@ -760,16 +759,13 @@ class SudokuBoard{
                     //test out that number and continue
                     setValue(col, row, i);
 
-                    if (SequentialRecursiveBacktrackSolve() == 0){
-                        //passed so end
-                        return 0;
-                    }
+                    if (SequentialRecursiveBacktrackSolve() == 0){return 0;}
                     
                     //undo and try a different number
                     setValue(col, row, EMPTY);
                 }
             }
-            
+    
             //could not solve the board for some reason
             return 1;
         }
@@ -777,9 +773,6 @@ class SudokuBoard{
     /// @brief Randomly fills up a board
     /// @return 0 on success, 1 on inability to solve
     int randomBoardSolve(){
-        //if (tiles.size()*tiles.size() != (unsigned int) sudoku_size){printf("tiles has len: %d\n", (int) (tiles.size()*tiles.size())); printBoard(); throw;}
-        //HOW IS IT POSSIBLE THAT THE LENGTH OF TILES IS CHANGING FROM 256 TO 368 FOR A 16X16 BOARD
-        //else{printf("tiles is good with length: %u\n", (unsigned int) tiles.size()*tiles.size());}
         int y = 0;
         int x = 0;
         if (!findEmptyTile(y, x)){
