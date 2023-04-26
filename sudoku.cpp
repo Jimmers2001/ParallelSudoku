@@ -1530,20 +1530,26 @@ int main(int argc, char** argv){
                 SudokuBoard* myboard = new SudokuBoard(boardstring);
 
 
+
                 /*  CUDA HERE */
                 // launch the CUDA kernel using the CUDA runtime API
                 
                 //cuda_kernel<<<1, NUM_THREADS>>>();
 
 
+                __device__ char* value;
     
                 // Elim Goes here
                 int startx, starty, endx, endy;
                 setBlockCoordinates(myrank, startx, starty, endx, endy);
+          
                 int changes = myboard->eliminationRule(startx, starty, endx, endy);
-                
-
-
+                if ( passThreshold(changes) ){ 
+                    //CudaElimination(myboard->boardToString().c_str());
+                    typeof(value) changes_;
+                    cudaMemcpyFromSymbol(&value, "d_answer", sizeof(value), 0, cudaMemcpyDeviceToHost);
+                };
+                    
                 //convert to char array
                 char send_board[boardstring.length() + 3];
                 char change_count = changes + '0';

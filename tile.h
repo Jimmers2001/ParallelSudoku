@@ -41,7 +41,7 @@ void printString(string v){
     cout << endl;
     printf("String is of size %u\n\n", (unsigned int) v.size());
 }
-
+int passThreshold(int changes){ return 0; } 
 /// @param val The value at that specific coordinate value
 /// @param pos_values The range of numbers that could be valid in this location
 class Tile{
