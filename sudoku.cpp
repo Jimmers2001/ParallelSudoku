@@ -6,9 +6,7 @@
 #include <mpi.h>
 #include <numeric>
 #include <cmath>
-//#include <cuda_runtime.h>
 #include <fstream>
-//#include <chrono>
 #include <cstring>
 #include <sstream>
 #include "tile.h"
@@ -88,15 +86,6 @@ string empty_board = "\
     0000000000000000\
     ";
 #endif
-
-
-/*
-long long getCurrentTimeMicros() {
-    auto time = std::chrono::high_resolution_clock::now();
-    auto duration = time.time_since_epoch();
-    return std::chrono::duration_cast<std::chrono::microseconds>(duration).count();
-}*/
-
 
 /// @brief Assigns a particular rank its block to solve in parallel
 /// @param myrank the rank itself
@@ -414,13 +403,6 @@ class SudokuBoard{
             return 0;
         }
 
-        /// @brief Getter function for board access
-        /// @return a copy of the board
-        /*vector<vector<Tile>> getBoard(){
-            vector<vector<Tile>> board_copy = tiles;////////////////////////check if this is deep or shallow copy
-            return board_copy;
-        }*/
-
         /// @brief called by solveBoardParallel (the driver), this function recurses and solves in parallel
         /// @return 0 on success, positive number on error
         int recursiveParallel(int currRank){
@@ -433,7 +415,7 @@ class SudokuBoard{
             if (!findEmptyTile(row, col)){return 0;}
             
             //try to fill the empty element
-            /*for (int i = 1; i <= boardsize; i++){
+            for (int i = 1; i <= boardsize; i++){
                 // the tile can support the value in (row, col)
                 if (canSupportinRow(row, i) && canSupportinCol(col, i) && canSupportinBlock(row, col, i)){
                     //test out that number and continue
@@ -446,7 +428,7 @@ class SudokuBoard{
                     //undo and try a different number
                     setValue(col,row,EMPTY);
                 }
-            }*/
+            }
             
             //could not solve the board for some reason
             return 1;
@@ -581,14 +563,6 @@ class SudokuBoard{
             }
             printf("\n\n\n");
             cudaFree(board);*/
-
-            /*I think this existing thought process is incorrect. 
-            all of this cuda initialization needs to happen in a function that initializes a char[] 
-            for the board. Then it calls a new variation of elimination (like parallelElimRule) 
-            that actually sets the changes of the board instead of just returning how many changes 
-            were made. That way, the device has a board variable that gets changed in cuda and it can be returned and analyzed.
-            */
-            
             
             /*
             int block_size = boardsize;//for 16x16 we want 16 threads per block, and 9 for 9x9
@@ -1111,16 +1085,6 @@ int tileToBlock(int x, int y){
     return blockY * blockSize + blockX + 1;
 }
 
-
-/*
-#define NUM_THREADS 9
-__global__ void cuda_kernel() {
-  // your CUDA kernel code here
-  printf("Hello World\n");
-}*/
-
-
-
 int ParallelDriver(string input_board){
         //initialize the board
         SudokuBoard* myBoard = new SudokuBoard(input_board);
@@ -1141,8 +1105,6 @@ int ParallelDriver(string input_board){
             MPI_Send(const_cast<char*>(message), sudoku_size + 3, MPI_CHAR, i + 1, 0, MPI_COMM_WORLD);
         }
 
-
-        
         delete myBoard;
         return value;
 }
@@ -1200,14 +1162,6 @@ int main(int argc, char** argv){
 
             DO THE REST OF OUR CODE GIVEN THAT BOARD
     */
-   //initialize timers
-   //std::chrono::duration<double, std::milli> elapsed;
-
-
-
-
-
-
 
 
 
@@ -1498,8 +1452,7 @@ int main(int argc, char** argv){
                 throw;
             }
 
-            //x = getCurrentTimeMicros() - x;
-            //parallel_humanistic_total_time += x;
+            
         } else { //we are a child process
             const int message_size = s_and_3;
             char message[message_size];
@@ -1528,16 +1481,6 @@ int main(int argc, char** argv){
                 string boardstring(board);
                 SudokuBoard* myboard = new SudokuBoard(boardstring);
 
-
-
-                /*  CUDA HERE */
-                // launch the CUDA kernel using the CUDA runtime API
-                
-                //cuda_kernel<<<1, NUM_THREADS>>>();
-
-
-                //__device__ char* value;
-    
                 // Elim Goes here
                 int startx, starty, endx, endy;
                 setBlockCoordinates(myrank, startx, starty, endx, endy);
@@ -1566,8 +1509,6 @@ int main(int argc, char** argv){
                 delete myboard;
             }
         }
-        //STOP CLOCK HERE//////////////////////////////////////////////////
-
         if (myrank == 0){delete parallel_humanistic;}
     }
 
@@ -1580,213 +1521,6 @@ int main(int argc, char** argv){
     }
         
     /*****************************END OF PARALLEL HUMANISTIC*******************************************/
-
-        
-
-    
-    
-#if 0
-    while (getline(input_file, line) ) {
-        line_counter++; //increment from -1 to 0 to start
-        //printf("On line: %d\t", line_counter);
-
-        // Allocate memory for the character array
-        char char_array[boardsize]; //no extra for null terminating yet because we will gather
-
-        if (myrank != 0){
-            // Compute the starting and ending character indices for this rank
-            int start_char_index = (myrank - 1) * CHARACTERS_PER_RANK;
-            int end_char_index = myrank * CHARACTERS_PER_RANK; ///////////EXCLUSIVE SO MUST DO < NOT <=
-            
-            //mpi doesnt have shared memory, so i have to make a bunch of char arrays 
-            //that are small and then gather them together into one bigger rank
-
-            // Read the characters for this rank from the current line
-            //printf("i am rank %d and I am reading: ", myrank);
-            for (int i = 0; i < CHARACTERS_PER_RANK; i++) {
-                int char_index = start_char_index + i;
-                if (char_index < end_char_index) {
-                    char_array[i] = line[char_index];
-                    //printf("%c", char_array[i]);
-                }
-            }
-            //printf("\n");
-        }
-        MPI_Barrier(MPI_COMM_WORLD);
-        //ALL RANKS RUN THIS PORTION:
-        // Gather the character arrays from all the ranks to the root rank
-        char gathered_char_array[CHARACTERS_PER_LINE+1]; //+1 for null terminating character
-        MPI_Gather(char_array, CHARACTERS_PER_RANK, MPI_CHAR,
-        gathered_char_array, CHARACTERS_PER_RANK, MPI_CHAR,
-        0, MPI_COMM_WORLD);
-
-        // Print the gathered character array from the root rank
-        MPI_Barrier(MPI_COMM_WORLD);
-
-        SudokuBoard* seq_brute_force;
-        SudokuBoard* rand_brute_force;
-        SudokuBoard* seq_humanistic;
-        SudokuBoard* parallel_humanistic;
-
-        if (myrank == 0) {
-            //create the string in this weird way
-            string s = "";
-            //printf("The entire line says: \n");
-            for (int i = 0; i < CHARACTERS_PER_LINE; i++) {
-                //cout << gathered_char_array[i+9]; //NEEDS THE +9
-                s.push_back(gathered_char_array[i+9]);
-            }
-  
-            seq_brute_force = new SudokuBoard(s);
-            rand_brute_force = new SudokuBoard(s);
-            seq_humanistic = new SudokuBoard(s);
-            parallel_humanistic = new SudokuBoard(s);
-        }
-    
-        //START CLOCK HERE//////////////////////////////////////////////////
-        if( myrank == 0 ){ 
-            //long long x = getCurrentTimeMicros();
-            //auto start = std::chrono::high_resolution_clock::now();
-            //sequential brute force
-            if (seq_brute_force->SequentialRecursiveBacktrackSolve() == 0){
-                //success
-                //printf("\nWe have solved the board for sequential brute force!\n");
-            } else{
-                //failure
-                printf("\nWe have not solved the board for sequential brute force\n");
-                throw;
-            }
-            //auto end = std::chrono::high_resolution_clock::now();
-            //std::chrono::duration<double, std::milli> elapsed = end - start;
-
-            //seq_brute_force_total_time += elapsed.count();
-            
-        }
-        // stop clock here
-
-        //START CLOCK HERE//////////////////////////////////////////////////
-        if( myrank == 0 ){ 
-            //long long x = getCurrentTimeMicros();
-            //random brute force
-            if (rand_brute_force->randomBoardSolve() == 0){
-                //success
-                //printf("\nWe have solved the board for random brute force!\n");
-            } else{
-                //failure
-                printf("\nWe have not solved the board for random brute force\n");
-                throw;
-            }
-            //randomBoardSolve();
-            //x = getCurrentTimeMicros() - x;
-            //rand_brute_force_total_time += x;
-        }
-        // stop clock here
-
-
-        //START CLOCK HERE//////////////////////////////////////////////////
-        //this code doesnt work because humanistic doesnt have backtracking as last resort implemented so it doesnt guarantee a solution
-        if( myrank == 0 ){ 
-           /* long long x = getCurrentTimeMicros();
-            //sequential humanistic code 
-            if (seq_humanistic->SequentialHumanisticSolve() == 0){
-                //success
-                //printf("\nWe have solved the board for sequential humanistic solve!\n");
-            } else{
-                //failure
-                printf("\nWe have not solved the board for sequential humanistic solve!\n");
-                throw;
-            }
-            x = getCurrentTimeMicros() - x;
-            seq_humanistic_total_time += x;*/
-        }
-        // stop clock here
-
-        //START CLOCK HERE//////////////////////////////////////////////////
-        //parallel humanistic code
-        if( myrank == 0 ){ // My main man
-            long long x = getCurrentTimeMicros();
-            
-            if (ParallelDriver(parallel_humanistic->boardToString()) == 0){
-                //success
-                //printf("\nWe have solved the board for parallel humanistic solve!\n");
-            } else{
-                //failure
-                printf("\nWe have not solved the board for parallel humanistic solve!\n");
-                throw;
-            }
-
-            x = getCurrentTimeMicros() - x;
-            parallel_humanistic_total_time += x;
-        } else { //we are a child process
-            char message[sudoku_size + 3] = "";
-            bool keepLooping = true;
-            int count = 0;
-
-            while ( keepLooping ){
-                count++;
-            
-                char board[sudoku_size + 1], tile[1];
-                MPI_Status status;
-                MPI_Recv(message, sudoku_size + 3, MPI_CHAR , MPI_ANY_SOURCE, 0, MPI_COMM_WORLD, &status);
-
-                string terminationCheck(message);
-                if( terminationCheck == "terminate" ){ keepLooping = false; continue; }
-                
-                // Message is in the form: board + " " + tile_location
-                // So we split it to get the data
-                istringstream iss(message);
-                iss.getline(board, sudoku_size + 1 , ' ');
-                iss.getline(tile, 2);
-                // ------------------------- DONT TOUCH ABOVE THIS LINE -------------------------- //
-
-                string boardstring(board);
-                SudokuBoard* myboard = new SudokuBoard(boardstring);
-
-
-                /*  CUDA HERE */
-                // launch the CUDA kernel using the CUDA runtime API
-                
-                //cuda_kernel<<<1, NUM_THREADS>>>();
-
-
-    
-                // Elim Goes here
-                int startx, starty, endx, endy;
-                setBlockCoordinates(myrank, startx, starty, endx, endy);
-                int changes = myboard->eliminationRule(startx, starty, endx, endy);
-                
-
-
-                //convert to char array
-                char send_board[boardstring.length() + 3];
-                char change_count = changes + '0';
-
-                strcpy( send_board, myboard->boardToString().c_str() );
-                strcat( send_board, " ");
-                strncat(send_board, &change_count, 1);
-                strcat( send_board, "\0");
-
-                //printf("In rank %d we have a board of:\n\tMessage: %s\n", myrank, send_board);
-
-
-                // -------------------------- All Code above this line ----------------------------//
-                MPI_Send(send_board, sudoku_size + 3, MPI_CHAR, 0, 0, MPI_COMM_WORLD);
-                delete myboard;
-            }
-        }
-        //STOP CLOCK HERE//////////////////////////////////////////////////
-
-        if (myrank == 0){delete seq_brute_force; delete rand_brute_force; delete seq_humanistic; delete parallel_humanistic;}
-    }
-
-    if (myrank == 0){
-        std::cout << " _______ Algorithm has an average time to solve of:" << seq_brute_force_total_time/1000.0 << "ms.\n";
-        std::cout << " _______ Algorithm has an average time to solve of:" << rand_brute_force_total_time/1000.0 << "ms.\n";
-        std::cout << " _______ Algorithm has an average time to solve of:" << seq_humanistic_total_time/1000.0 << "ms.\n"; 
-        std::cout << " _______ Algorithm has an average time to solve of:" << parallel_humanistic_total_time/1000.0 << "ms.\n";
-    }
-
-#endif
 
     MPI_Barrier(MPI_COMM_WORLD);
     // Close the input file and finalize MPI
