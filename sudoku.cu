@@ -7,15 +7,8 @@
 #include <string>
 #include <numeric>
 #include <cmath>
- 
-/*
-__global__ void __multiply__ (){
-    printf("In multiply\n");
-}*/
-
-
      
-extern "C++"  void CudaElimination(char *sudoku_str){
+extern "C++" void CudaElimination(char *sudoku_str){
   int i, j, k, l, num;
   int sudoku_matrix[9][9];
   char temp[2];
@@ -114,4 +107,9 @@ extern "C++"  void CudaElimination(char *sudoku_str){
   
   //set to global shared mem
   value = sudoku_str;
+
 }
+/*
+int main(){
+    return 0;
+}*/

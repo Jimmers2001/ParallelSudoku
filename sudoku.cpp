@@ -6,21 +6,20 @@
 #include <mpi.h>
 #include <numeric>
 #include <cmath>
-#include <cuda_runtime.h>
+//#include <cuda_runtime.h>
 #include <fstream>
-#include <chrono>
+//#include <chrono>
 #include <cstring>
 #include <sstream>
 #include "tile.h"
 using namespace std;
 
-extern void CudaThings();
+extern "C++" void CudaElimination(char *sudoku_str);
 
 //numbers 1-9 and then continuing with letters a-z for 10-36
 
-// JIMMOTHY TILES[Y][X]
-
 int EMPTY = 0;
+const int s_and_3 = sudoku_size + 3;
 
 //define some board examples
 string test2 = "\
@@ -88,12 +87,12 @@ string empty_board = "\
 #endif
 
 
-
+/*
 long long getCurrentTimeMicros() {
     auto time = std::chrono::high_resolution_clock::now();
     auto duration = time.time_since_epoch();
     return std::chrono::duration_cast<std::chrono::microseconds>(duration).count();
-}
+}*/
 
 
 /// @brief Assigns a particular rank its block to solve in parallel
@@ -870,7 +869,9 @@ class SudokuBoard{
             if( sendToArray[i] ){  
 
                 char tile = sendToValues[i]; // Tile location 1-z as a char
-                char message[sudoku_size + 3] = ""; //Message to be sent to rank i + 1
+                const int message_size = s_and_3;
+                char message[message_size];
+                std::fill(message, message + message_size, '\0'); //Message to be sent to rank i + 1
 
                 string b = this->boardToString(); 
                 
@@ -896,7 +897,10 @@ class SudokuBoard{
     
         for (unsigned int i = 0; i < sendToArray.size(); i++) {
             if( sendToArray[i] ){  
-                char incoming_message[sudoku_size + 3] = "";
+                const int message_size = s_and_3;
+                char incoming_message[message_size];
+                std::fill(incoming_message, incoming_message + message_size, '\0'); //Message to be sent to rank i + 1
+
                 char incoming_board[sudoku_size + 1],  incoming_tiles_updated[1];
                 MPI_Recv(&incoming_message, sudoku_size + 3, MPI_CHAR, i + 1, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);                   
             
@@ -979,7 +983,7 @@ class SudokuBoard{
 /// @return Uses boardsize to make a sudoku board to solve
 SudokuBoard* generateSudokuBoard(string difficulty){
     //Seed the random number generator with the current time
-    srand(getCurrentTimeMicros());
+    //srand(getCurrentTimeMicros());
     //chose the number of givens to include in the generated board
     unsigned int number_of_givens;
     int total_squares = sudoku_size;
@@ -1194,7 +1198,7 @@ int main(int argc, char** argv){
             DO THE REST OF OUR CODE GIVEN THAT BOARD
     */
    //initialize timers
-   std::chrono::duration<double, std::milli> elapsed;
+   //std::chrono::duration<double, std::milli> elapsed;
 
 
 
@@ -1206,7 +1210,7 @@ int main(int argc, char** argv){
 
     /*****************************START OF SEQUENTIAL BRUTE FORCE*******************************************/
     int line_counter = -1;
-    auto start = std::chrono::high_resolution_clock::now();
+    //auto start = std::chrono::high_resolution_clock::now();
 
     while (getline(input_file, line) ) {
         //PARALLEL IO
@@ -1283,12 +1287,12 @@ int main(int argc, char** argv){
         if (myrank == 0){delete seq_brute_force;}
 
     }
-    auto end = std::chrono::high_resolution_clock::now();
-    elapsed = end - start;
-    seq_brute_force_total_time = elapsed.count();
+    //auto end = std::chrono::high_resolution_clock::now();
+    //elapsed = end - start;
+    //seq_brute_force_total_time = elapsed.count();
 
     if (myrank == 0){
-        complete_results += "\nSEQUENTIAL BRUTE FORCE Algorithm has an average time to solve of: " + to_string(seq_brute_force_total_time/ntests) + "ms and a total time of: " + to_string(seq_brute_force_total_time) + "ms\n";
+        //complete_results += "\nSEQUENTIAL BRUTE FORCE Algorithm has an average time to solve of: " + to_string(seq_brute_force_total_time/ntests) + "ms and a total time of: " + to_string(seq_brute_force_total_time) + "ms\n";
     }
     /*****************************END OF SEQUENTIAL BRUTE FORCE*******************************************/
 
@@ -1314,7 +1318,7 @@ int main(int argc, char** argv){
 
     /*****************************START OF RANDOM BRUTE FORCE*******************************************/
     line_counter = -1;
-    start = std::chrono::high_resolution_clock::now();
+    //start = std::chrono::high_resolution_clock::now();
     while (getline(input_file, line) ) {
         line_counter++; //increment from -1 to 0 to start
         //PARALLEL IO
@@ -1373,7 +1377,7 @@ int main(int argc, char** argv){
         #endif
 
         if( myrank == 0 ){ 
-            long long x = getCurrentTimeMicros();
+            //long long x = getCurrentTimeMicros();
             //random brute force
             if (rand_brute_force->randomBoardSolve() == 0){
                 //success
@@ -1384,8 +1388,8 @@ int main(int argc, char** argv){
                 throw;
             }
             //randomBoardSolve();
-            x = getCurrentTimeMicros() - x;
-            rand_brute_force_total_time += x;
+            //x = getCurrentTimeMicros() - x;
+            //rand_brute_force_total_time += x;
         }
 
          if (myrank == 0){delete rand_brute_force;}
@@ -1393,12 +1397,12 @@ int main(int argc, char** argv){
     }
 
 
-    end = std::chrono::high_resolution_clock::now();
-    elapsed = end - start;
-    rand_brute_force_total_time = elapsed.count();
+    //end = std::chrono::high_resolution_clock::now();
+    //elapsed = end - start;
+    //rand_brute_force_total_time = elapsed.count();
 
     if (myrank == 0){
-        complete_results += "\nRANDOM BRUTE FORCE Algorithm has an average time to solve of: " + to_string(rand_brute_force_total_time/ntests) + "ms and a total time of: " + to_string(rand_brute_force_total_time) + "ms\n";
+       // complete_results += "\nRANDOM BRUTE FORCE Algorithm has an average time to solve of: " + to_string(rand_brute_force_total_time/ntests) + "ms and a total time of: " + to_string(rand_brute_force_total_time) + "ms\n";
     }
     
     /*****************************END OF RANDOM BRUTE FORCE*******************************************/
@@ -1426,7 +1430,7 @@ int main(int argc, char** argv){
     /*****************************START OF PARALLEL HUMANISTIC*******************************************/
     //parallel humanistic
     line_counter = -1;
-    start = std::chrono::high_resolution_clock::now();
+    //start = std::chrono::high_resolution_clock::now();
     while (getline(input_file, line) ) {
         line_counter++; //increment from -1 to 0 to start
         #if 1
@@ -1484,7 +1488,7 @@ int main(int argc, char** argv){
         #endif
 
         if( myrank == 0 ){ // My main man
-            long long x = getCurrentTimeMicros();
+            //long long x = getCurrentTimeMicros();
             
             if (ParallelDriver(parallel_humanistic->boardToString()) == 0){
                 //success
@@ -1495,10 +1499,13 @@ int main(int argc, char** argv){
                 throw;
             }
 
-            x = getCurrentTimeMicros() - x;
-            parallel_humanistic_total_time += x;
+            //x = getCurrentTimeMicros() - x;
+            //parallel_humanistic_total_time += x;
         } else { //we are a child process
-            char message[sudoku_size + 3] = "";
+            const int message_size = s_and_3;
+            char message[message_size];
+            std::fill(message, message + message_size, '\0'); //Message to be sent to rank i + 1
+
             bool keepLooping = true;
             int count = 0;
 
@@ -1530,7 +1537,7 @@ int main(int argc, char** argv){
                 //cuda_kernel<<<1, NUM_THREADS>>>();
 
 
-                __device__ char* value;
+                //__device__ char* value;
     
                 // Elim Goes here
                 int startx, starty, endx, endy;
@@ -1539,8 +1546,8 @@ int main(int argc, char** argv){
                 int changes = myboard->eliminationRule(startx, starty, endx, endy);
                 if ( passThreshold(changes) ){ 
                     //CudaElimination(myboard->boardToString().c_str());
-                    typeof(value) changes_;
-                    cudaMemcpyFromSymbol(&value, "d_answer", sizeof(value), 0, cudaMemcpyDeviceToHost);
+                    //typeof(value) changes_;
+                    //cudaMemcpyFromSymbol(&value, "d_answer", sizeof(value), 0, cudaMemcpyDeviceToHost);
                 };
                     
                 //convert to char array
@@ -1565,14 +1572,14 @@ int main(int argc, char** argv){
         if (myrank == 0){delete parallel_humanistic;}
     }
 
-    end = std::chrono::high_resolution_clock::now();
+    /*end = std::chrono::high_resolution_clock::now();
     elapsed = end - start;
     parallel_humanistic_total_time = elapsed.count();
 
     
     if (myrank == 0){
         complete_results += "\nPARALLEL HUMANISTIC Algorithm has an average time to solve of: " + to_string(parallel_humanistic_total_time/ntests) + "ms and a total time of: " + to_string(parallel_humanistic_total_time) + "ms\n";
-    }
+    }*/
         
     /*****************************END OF PARALLEL HUMANISTIC*******************************************/
 
@@ -1640,8 +1647,8 @@ int main(int argc, char** argv){
     
         //START CLOCK HERE//////////////////////////////////////////////////
         if( myrank == 0 ){ 
-            long long x = getCurrentTimeMicros();
-            auto start = std::chrono::high_resolution_clock::now();
+            //long long x = getCurrentTimeMicros();
+            //auto start = std::chrono::high_resolution_clock::now();
             //sequential brute force
             if (seq_brute_force->SequentialRecursiveBacktrackSolve() == 0){
                 //success
@@ -1651,17 +1658,17 @@ int main(int argc, char** argv){
                 printf("\nWe have not solved the board for sequential brute force\n");
                 throw;
             }
-            auto end = std::chrono::high_resolution_clock::now();
-            std::chrono::duration<double, std::milli> elapsed = end - start;
+            //auto end = std::chrono::high_resolution_clock::now();
+            //std::chrono::duration<double, std::milli> elapsed = end - start;
 
-            seq_brute_force_total_time += elapsed.count();
+            //seq_brute_force_total_time += elapsed.count();
             
         }
         // stop clock here
 
         //START CLOCK HERE//////////////////////////////////////////////////
         if( myrank == 0 ){ 
-            long long x = getCurrentTimeMicros();
+            //long long x = getCurrentTimeMicros();
             //random brute force
             if (rand_brute_force->randomBoardSolve() == 0){
                 //success
@@ -1672,8 +1679,8 @@ int main(int argc, char** argv){
                 throw;
             }
             //randomBoardSolve();
-            x = getCurrentTimeMicros() - x;
-            rand_brute_force_total_time += x;
+            //x = getCurrentTimeMicros() - x;
+            //rand_brute_force_total_time += x;
         }
         // stop clock here
 
