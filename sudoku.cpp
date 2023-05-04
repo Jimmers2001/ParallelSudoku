@@ -12,6 +12,8 @@
 #include <cstring>
 #include <sstream>
 #include "tile.h"
+#include "clockcycle.h"
+
 using namespace std;
 
 extern "C++" void CudaElimination(char *sudoku_str);
@@ -20,6 +22,7 @@ extern "C++" void CudaElimination(char *sudoku_str);
 
 int EMPTY = 0;
 const int s_and_3 = sudoku_size + 3;
+#define clock_frequency 512000000
 
 //define some board examples
 string test2 = "\
@@ -1210,7 +1213,7 @@ int main(int argc, char** argv){
 
     /*****************************START OF SEQUENTIAL BRUTE FORCE*******************************************/
     int line_counter = -1;
-    //auto start = std::chrono::high_resolution_clock::now();
+    unsigned long long start_time=clock_now();
 
     while (getline(input_file, line) ) {
         //PARALLEL IO
@@ -1287,12 +1290,12 @@ int main(int argc, char** argv){
         if (myrank == 0){delete seq_brute_force;}
 
     }
-    //auto end = std::chrono::high_resolution_clock::now();
-    //elapsed = end - start;
-    //seq_brute_force_total_time = elapsed.count();
+    unsigned long long end_time=clock_now();
+    unsigned long long num_cycles = (end_time - start_time);
+    seq_brute_force_total_time = ((long double)(end_time - start_time)) / clock_frequency;
 
     if (myrank == 0){
-        //complete_results += "\nSEQUENTIAL BRUTE FORCE Algorithm has an average time to solve of: " + to_string(seq_brute_force_total_time/ntests) + "ms and a total time of: " + to_string(seq_brute_force_total_time) + "ms\n";
+        complete_results += "\nSEQUENTIAL BRUTE FORCE Algorithm has an average time to solve of: " + to_string(seq_brute_force_total_time/ntests) + "ms and a total time of: " + to_string(seq_brute_force_total_time) + "ms\n";
     }
     /*****************************END OF SEQUENTIAL BRUTE FORCE*******************************************/
 
@@ -1318,7 +1321,7 @@ int main(int argc, char** argv){
 
     /*****************************START OF RANDOM BRUTE FORCE*******************************************/
     line_counter = -1;
-    //start = std::chrono::high_resolution_clock::now();
+    start_time=clock_now();
     while (getline(input_file, line) ) {
         line_counter++; //increment from -1 to 0 to start
         //PARALLEL IO
@@ -1377,7 +1380,6 @@ int main(int argc, char** argv){
         #endif
 
         if( myrank == 0 ){ 
-            //long long x = getCurrentTimeMicros();
             //random brute force
             if (rand_brute_force->randomBoardSolve() == 0){
                 //success
@@ -1388,21 +1390,18 @@ int main(int argc, char** argv){
                 throw;
             }
             //randomBoardSolve();
-            //x = getCurrentTimeMicros() - x;
-            //rand_brute_force_total_time += x;
         }
 
-         if (myrank == 0){delete rand_brute_force;}
+        if (myrank == 0){delete rand_brute_force;}
         
     }
 
-
-    //end = std::chrono::high_resolution_clock::now();
-    //elapsed = end - start;
-    //rand_brute_force_total_time = elapsed.count();
+    end_time=clock_now();
+    num_cycles = (end_time - start_time);
+    rand_brute_force_total_time = ((long double)(end_time - start_time)) / clock_frequency;
 
     if (myrank == 0){
-       // complete_results += "\nRANDOM BRUTE FORCE Algorithm has an average time to solve of: " + to_string(rand_brute_force_total_time/ntests) + "ms and a total time of: " + to_string(rand_brute_force_total_time) + "ms\n";
+        complete_results += "\nRANDOM BRUTE FORCE Algorithm has an average time to solve of: " + to_string(rand_brute_force_total_time/ntests) + "ms and a total time of: " + to_string(rand_brute_force_total_time) + "ms\n";
     }
     
     /*****************************END OF RANDOM BRUTE FORCE*******************************************/
@@ -1430,7 +1429,7 @@ int main(int argc, char** argv){
     /*****************************START OF PARALLEL HUMANISTIC*******************************************/
     //parallel humanistic
     line_counter = -1;
-    //start = std::chrono::high_resolution_clock::now();
+    start_time=clock_now();
     while (getline(input_file, line) ) {
         line_counter++; //increment from -1 to 0 to start
         #if 1
@@ -1572,14 +1571,13 @@ int main(int argc, char** argv){
         if (myrank == 0){delete parallel_humanistic;}
     }
 
-    /*end = std::chrono::high_resolution_clock::now();
-    elapsed = end - start;
-    parallel_humanistic_total_time = elapsed.count();
-
+    end_time=clock_now();
+    num_cycles = (end_time - start_time);
+    parallel_humanistic_total_time = ((long double)(end_time - start_time)) / clock_frequency;
     
     if (myrank == 0){
         complete_results += "\nPARALLEL HUMANISTIC Algorithm has an average time to solve of: " + to_string(parallel_humanistic_total_time/ntests) + "ms and a total time of: " + to_string(parallel_humanistic_total_time) + "ms\n";
-    }*/
+    }
         
     /*****************************END OF PARALLEL HUMANISTIC*******************************************/
 
